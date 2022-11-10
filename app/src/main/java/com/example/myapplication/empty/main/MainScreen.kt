@@ -1,4 +1,4 @@
-package com.example.myapplication.empty
+package com.example.myapplication.empty.main
 
 import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
@@ -14,6 +14,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import com.example.myapplication.empty.home.HomeScreen
+import com.example.myapplication.empty.home.HomeThunk
+import com.example.myapplication.empty.podcast.PodcastScreen
+import com.example.myapplication.empty.blog.BlogsScreen
+import com.example.myapplication.empty.book.BooksScreen
+import com.example.myapplication.empty.book.BooksThunk
 
 context(HomeThunk, BooksThunk)
         @OptIn(ExperimentalMaterial3Api::class)

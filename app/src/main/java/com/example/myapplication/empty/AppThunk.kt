@@ -33,7 +33,10 @@ class AppAndroid : AppThunk {
                         }
                     }
                 } else {
-                    s.value = s.value.copy(fromScreen = s.value.fromScreen.plus(NavGraph.books.modify(action.navGraph) { it.copy(new = false) }), currentScreen = action.navGraph)
+                    s.value = s.value.copy(
+                        fromScreen = s.value.fromScreen.plus(NavGraph.books.modify(action.navGraph) { it.copy(new = false) }),
+                        currentScreen = action.navGraph
+                    )
                 }
             }
         }

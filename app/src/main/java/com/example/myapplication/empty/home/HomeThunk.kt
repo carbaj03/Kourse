@@ -1,5 +1,6 @@
-package com.example.myapplication.empty
+package com.example.myapplication.empty.home
 
+import com.example.myapplication.empty.NavGraph
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 

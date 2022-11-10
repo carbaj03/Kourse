@@ -1,7 +1,9 @@
-package com.example.myapplication.empty
+package com.example.myapplication.empty.main
 
 import arrow.core.continuations.either
 import com.example.myapplication.asynchrony.WithScope
+import com.example.myapplication.empty.Repository
+import com.example.myapplication.empty.book.BooksRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 

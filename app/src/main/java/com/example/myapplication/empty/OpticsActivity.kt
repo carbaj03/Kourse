@@ -4,12 +4,18 @@ import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.example.myapplication.asynchrony.WithScope
+import com.example.myapplication.empty.blog.BlogsScreen
+import com.example.myapplication.empty.book.*
+import com.example.myapplication.empty.home.HomeState
+import com.example.myapplication.empty.home.HomeThunk
+import com.example.myapplication.empty.home.HomeThunkAndroid
+import com.example.myapplication.empty.main.*
+import com.example.myapplication.empty.podcast.PodcastScreen
 import com.example.myapplication.todo.Books
 
 
@@ -83,7 +89,8 @@ fun App() {
                     ),
                     bottom = BottomState(BottomAction.values().toList(),{})
                 )
-            ))
+            )
+        )
     }
 
     var t1 by remember {
@@ -96,7 +103,8 @@ fun App() {
                     toolbar = null,
                     bottom = null
                 )
-            ))
+            )
+        )
     }
 
 

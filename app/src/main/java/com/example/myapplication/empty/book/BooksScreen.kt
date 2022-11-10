@@ -1,4 +1,4 @@
-package com.example.myapplication.empty
+package com.example.myapplication.empty.book
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.clickable

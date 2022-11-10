@@ -1,7 +1,9 @@
-package com.example.myapplication.empty
+package com.example.myapplication.empty.book
 
 import arrow.core.Either
 import arrow.core.right
+import com.example.myapplication.empty.DomainError
+import com.example.myapplication.empty.toEither
 import com.example.myapplication.todo.Book
 import com.example.myapplication.todo.Books
 

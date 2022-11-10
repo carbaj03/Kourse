@@ -1,4 +1,4 @@
-package com.example.myapplication.empty
+package com.example.myapplication.empty.home
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding

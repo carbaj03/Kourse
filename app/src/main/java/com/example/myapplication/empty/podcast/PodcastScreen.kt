@@ -1,4 +1,4 @@
-package com.example.myapplication.empty
+package com.example.myapplication.empty.podcast
 
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
