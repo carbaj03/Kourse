@@ -1,14 +1,15 @@
 package com.example.myapplication.todo
 
+import android.graphics.drawable.Icon
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.BottomNavigation
-import androidx.compose.material.BottomNavigationItem
-import androidx.compose.material.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import recomposeHighlighter
 
 
@@ -76,9 +78,9 @@ fun NavGraphBuilder.Bottom(
 
     Scaffold(
         bottomBar = {
-            BottomNavigation {
+            BottomAppBar {
                 state.list.forEach { screen ->
-                    BottomNavigationItem(
+                    NavigationBarItem(
                         icon = { Icon(Icons.Filled.Favorite, contentDescription = null) },
                         label = { Text(screen.title) },
                         selected = state.selected == screen,

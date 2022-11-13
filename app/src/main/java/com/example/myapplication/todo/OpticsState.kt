@@ -23,7 +23,6 @@ data class HomeState(
     companion object
 }
 
-
 @optics
 data class ToolbarState(
     val title: String = "asdfdasf",
@@ -31,7 +30,6 @@ data class ToolbarState(
 ) : State {
     companion object
 }
-
 
 enum class BottomItem(
     open val title: String = "asdfdasf",
@@ -95,11 +93,16 @@ value class Podcasts(
     val value: List<Podcast>
 )
 
+@JvmInline
+value class PodcastId(
+    val value: Int
+)
+
 data class Podcast(
+    val id: PodcastId,
     val title: String,
     val url: String
 )
-
 
 @JvmInline
 value class Books(
@@ -108,16 +111,35 @@ value class Books(
 
 data class Book(
     val id: Int,
-    val title: String
-)
-
+    val title: String,
+    val type: Type = Type.Ebook,
+    val genre: Genre = Genre.SelfDev,
+) {
+    enum class Type {
+        AudioBook, Ebook, Pdf
+    }
+    
+    enum class Genre {
+        Romance, SelfDev,
+    }
+    
+    data class Author(
+        val name: String,
+    )
+}
 
 @JvmInline
 value class Videos(
     val value: List<Video>
 )
 
+@JvmInline
+value class VideoId(
+    val value: Int
+)
+
 data class Video(
+    val id: VideoId,
     val type: Type,
     val url: String
 ) {
@@ -126,16 +148,20 @@ data class Video(
     }
 }
 
-
 @JvmInline
 value class Blogs(
     val value: List<Blog>
 )
 
-data class Blog(
-    val author: Author
+@JvmInline
+value class BlogId(
+    val value: Int
 )
 
+data class Blog(
+    val id: BlogId,
+    val author: Author
+)
 
 data class Author(
     val web: String,
@@ -152,4 +178,5 @@ sealed class SocialMedia(open val url: String) {
     data class Twitter(override val url: String) : SocialMedia(url)
     data class Facebook(override val url: String) : SocialMedia(url)
     data class Youtube(override val url: String) : SocialMedia(url)
+    data class Instagram(override val url: String) : SocialMedia(url)
 }

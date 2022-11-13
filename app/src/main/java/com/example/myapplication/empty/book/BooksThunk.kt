@@ -11,6 +11,7 @@ sealed interface BooksAction {
     object Load : BooksAction
     object Back : BooksAction
     data class Selected(val book: Book) : BooksAction
+    data class LongPress(val book: Book) : BooksAction
 }
 
 data class BooksState(
@@ -26,11 +27,10 @@ data class ToolbarState(
 
 data class BottomState(
     val actions: List<BottomAction>,
-    val onAdd : () -> Unit,
 )
 
 enum class BottomAction {
-    Select
+    Select, LongPress
 }
 
 
@@ -60,6 +60,10 @@ class BooksThunkAndroid(
 
             is BooksAction.Back -> {
                 nav(NavGraph.Back)
+            }
+
+            is BooksAction.LongPress -> {
+                s.value = s.value.copy(bottom = BottomState(listOf(BottomAction.LongPress)))
             }
         }
     }
