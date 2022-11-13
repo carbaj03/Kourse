@@ -10,5 +10,11 @@
     "post": {
       "belongsTo": "Post"
     }
+  },
+  "Other": {
+    "body": { "string": {} },
+    "post": {
+      "belongsTo": "Post"
+    }
   }
 }
