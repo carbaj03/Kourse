@@ -1,16 +1,20 @@
 package com.example.myapplication.empty.user
 
+import android.util.Log
 import arrow.core.Either
-import com.example.myapplication.empty.common.DBError
+import arrow.core.right
 import com.example.myapplication.empty.common.DomainError
-import com.example.myapplication.empty.common.NetworkError
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
 
 interface UserRepository {
-    fun logIn(): Either<DomainError, User>
-    fun logOut(): Either<DomainError, User>
-    fun signIn(): Either<DomainError, User>
+    suspend fun logIn(username: String, password: String): Either<DomainError, User>
+    suspend fun logOut(): Either<DomainError, Success>
+    suspend fun signIn(): Either<DomainError, User>
     
-    fun getUser(): Either<DomainError, User>
+    suspend fun getUser(): Either<DomainError, User>
 }
 
 object Network {
@@ -18,33 +22,65 @@ object Network {
 }
 
 interface UserNetwork {
-    fun get(): Either<NetworkError, Network.User>
 }
+
+fun UserNetwork(
+    client: HttpClient,
+): UserNetwork =
+    object : UserNetwork {
+//        override suspend fun login(
+//            name: String,
+//            password: String,
+//        ) {
+//            try {
+////            val response = client.get("http://10.0.2.2:5000/")
+//                //                val response = client.get("http://kourse-env.eba-xhpbikif.us-east-1.elasticbeanstalk.com/")
+//                val response = client.get("http://192.168.0.101:5000/books")
+//                Log.e("ktor", response.toString())
+//
+////                val response2 = client.get("http://10.0.2.2:5000/customer")
+////                Log.e("ktor", response2.toString())
+//            } catch (e: Exception) {
+//                Log.e("ktor", e.message.toString())
+//            }
+//        }
+    }
 
 object DB {
     data class User(val name: String)
 }
 
-interface UserDB {
-    fun get(): Either<DBError, DB.User>
+interface UserDB
+
+fun UserDB() = object : UserDB {}
+
+object Success
+
+interface RepositoryDispatcher {
+    val io: CoroutineContext
+    val default: CoroutineContext
 }
 
-context(UserNetwork, UserDB)
+context(UserNetwork, UserDB, RepositoryDispatcher)
 fun UserRepository(): UserRepository =
     object : UserRepository {
-        override fun logIn(): Either<DomainError, User> {
+        var user: User? = null
+        
+        override suspend fun logIn(username: String, password: String): Either<DomainError, User> =
+            withContext(io) {
+                User(username, password).right().also { it.map { user = it } }
+            }
+        
+        override suspend fun logOut(): Either<DomainError, Success> =
+            withContext(io) {
+                Success.right().also { user = null }
+            }
+        
+        override suspend fun signIn(): Either<DomainError, User> {
             TODO("Not yet implemented")
         }
         
-        override fun logOut(): Either<DomainError, User> {
-            TODO("Not yet implemented")
-        }
-        
-        override fun signIn(): Either<DomainError, User> {
-            TODO("Not yet implemented")
-        }
-        
-        override fun getUser(): Either<DomainError, User> {
+        override suspend fun getUser(): Either<DomainError, User> {
             TODO("Not yet implemented")
         }
     }

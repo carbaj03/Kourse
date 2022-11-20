@@ -10,7 +10,7 @@ sealed class NavGraph(
     object Podcasts : NavGraph()
     object Blogs : NavGraph()
     data class Books(override val new: Boolean = true) : NavGraph(new)
-    object Main : NavGraph()
+    data class Main(val userGraph: UserGraph) : NavGraph()
     object Login : NavGraph()
     data class BookDetail(val book: Book) : NavGraph()
 

@@ -16,7 +16,7 @@ interface PodcastNetwork
 fun PodcastNetwork() = object : PodcastNetwork {}
 
 interface PodcastRepository {
-    fun all(): Either<DomainError, Podcasts>
+    fun allPodcasts(): Either<DomainError, Podcasts>
     fun byId(id: PodcastId): Either<DomainError, Podcast>
     fun save(podcast: Podcast): Either<DomainError, Podcast>
     fun remove(id: PodcastId): Either<DomainError, Podcast>
@@ -27,7 +27,7 @@ fun PodcastRepository(): PodcastRepository =
     object : PodcastRepository {
         var podcast = Podcasts(listOf(Podcast(PodcastId(1), title = "Title", url = "")))
         
-        override fun all(): Either<DomainError, Podcasts> = podcast.right()
+        override fun allPodcasts(): Either<DomainError, Podcasts> = podcast.right()
         
         override fun byId(id: PodcastId): Either<DomainError, Podcast> {
             TODO("Not yet implemented")

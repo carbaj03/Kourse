@@ -40,7 +40,7 @@ interface BooksThunk {
 }
 
 class BooksThunkAndroid(
-    val repository: BooksRepository,
+    val repository: BookRepository,
     val nav: (NavGraph) -> Unit,
     val initialState : BooksState
 ) : BooksThunk {
@@ -49,7 +49,7 @@ class BooksThunkAndroid(
     override fun dispatch(action: BooksAction) {
         when (action) {
             BooksAction.Load -> {
-                repository.all().map {
+                repository.allBooks().map {
                     s.value = s.value.copy(books = it)
                 }
             }

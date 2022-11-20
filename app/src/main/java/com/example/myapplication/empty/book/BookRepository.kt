@@ -7,23 +7,23 @@ import com.example.myapplication.empty.common.toEither
 import com.example.myapplication.todo.Book
 import com.example.myapplication.todo.Books
 
-interface BooksNetwork
+interface BookNetwork
 
-fun BooksNetwork(): BooksNetwork = object : BooksNetwork {}
+fun BooksNetwork(): BookNetwork = object : BookNetwork {}
 
-interface BooksDB
+interface BookDB
 
-fun BooksDB(): BooksDB = object : BooksDB {}
+fun BookDB(): BookDB = object : BookDB {}
 
-interface BooksRepository {
-    fun all(): Either<DomainError, Books>
+interface BookRepository {
+    fun allBooks(): Either<DomainError, Books>
     fun save(book: Book): Either<DomainError, Book>
     fun get(id: Int): Either<DomainError, Book>
 }
 
-context(BooksNetwork, BooksDB)
-fun BookRepository(): BooksRepository =
-    object : BooksRepository {
+context(BookNetwork, BookDB)
+fun BookRepository(): BookRepository =
+    object : BookRepository {
         private var books = Books(
             buildList {
                 repeat(30) {
@@ -32,7 +32,7 @@ fun BookRepository(): BooksRepository =
             }
         )
         
-        override fun all(): Either<DomainError, Books> {
+        override fun allBooks(): Either<DomainError, Books> {
             return books.right()
         }
         

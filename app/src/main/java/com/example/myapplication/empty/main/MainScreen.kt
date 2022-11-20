@@ -20,6 +20,7 @@ import com.example.myapplication.empty.home.HomeThunk
 import com.example.myapplication.empty.podcast.PodcastScreen
 import com.example.myapplication.empty.video.VideoScreen
 import kotlinx.coroutines.launch
+import recomposeHighlighter
 
 context(HomeThunk, BooksThunk)
         @OptIn(ExperimentalMaterial3Api::class)
@@ -38,7 +39,9 @@ context(HomeThunk, BooksThunk)
         dispatch(MainAction.ChangeTab(Tab.Home))
     }
     
-    Drawer {
+    Drawer(
+        logOut = { dispatch(MainAction.LogOut) }
+    ) {
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -79,13 +82,15 @@ context(HomeThunk, BooksThunk)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Drawer(
-    content: @Composable () -> Unit
+    logOut: () -> Unit,
+    content: @Composable () -> Unit,
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     
     val items = listOf(Icons.Default.Favorite, Icons.Default.Face, Icons.Default.Email)
     val selectedItem = remember { mutableStateOf(items[0]) }
+    
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -112,7 +117,7 @@ fun Drawer(
                 Spacer(Modifier.padding(16.dp))
                 Divider()
                 Text(text = "sadf", Modifier.padding(16.dp))
-                repeat(20) {
+                repeat(5) {
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
                         label = {
@@ -122,7 +127,9 @@ fun Drawer(
                         onClick = {
                             scope.launch { drawerState.close() }
                         },
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                        modifier = Modifier
+                            .padding(NavigationDrawerItemDefaults.ItemPadding)
+                            .recomposeHighlighter(),
                         badge = { Text(text = "22") }
                     )
                 }
@@ -135,7 +142,23 @@ fun Drawer(
                     onClick = {
                         scope.launch { drawerState.close() }
                     },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                    modifier = Modifier
+                        .padding(NavigationDrawerItemDefaults.ItemPadding)
+                        .recomposeHighlighter(),
+                )
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                    label = {
+                        Text("Log out", style = MaterialTheme.typography.labelMedium)
+                    },
+                    selected = false,
+                    onClick = {
+                        logOut()
+                        scope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier
+                        .padding(NavigationDrawerItemDefaults.ItemPadding)
+                        .recomposeHighlighter(),
                 )
             }
         },

@@ -25,7 +25,7 @@ interface BookThunk {
 }
 
 class BookThunkAndroid(
-    val repository: BooksRepository,
+    val repository: BookRepository,
     val nav: (NavGraph) -> Unit,
     val initialState: BookState
 ) : BookThunk {

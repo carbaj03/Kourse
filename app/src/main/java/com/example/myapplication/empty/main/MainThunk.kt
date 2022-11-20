@@ -2,18 +2,22 @@ package com.example.myapplication.empty.main
 
 import arrow.core.continuations.either
 import com.example.myapplication.asynchrony.WithScope
-import com.example.myapplication.empty.book.BooksRepository
+import com.example.myapplication.empty.NavGraph
+import com.example.myapplication.empty.book.BookRepository
 import com.example.myapplication.empty.podcast.PodcastRepository
+import com.example.myapplication.empty.user.UserRepository
 import com.example.myapplication.empty.video.VideoRepository
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 data class MainState(
     val title: String = "",
     val items: List<String> = emptyList(),
     val tabs: List<Tab> = Tab.values().toList(),
     val selectedTab: Tab = Tab.Home,
-    val drawer: Boolean
+    val drawer: Boolean,
 )
 
 enum class Tab(val title: String) {
@@ -28,6 +32,7 @@ sealed interface MainAction {
     object Load : MainAction
     data class ChangeTab(val tab: Tab) : MainAction
     object Account : MainAction
+    object LogOut : MainAction
 }
 
 interface MainThunk {
@@ -35,12 +40,11 @@ interface MainThunk {
     val state: StateFlow<MainState>
 }
 
+context(BookRepository, VideoRepository, PodcastRepository, UserRepository, CoroutineScope)
 class MainThunkAndroid(
     initialState: MainState,
-    val bookRepository: BooksRepository,
-    val videoRepository: VideoRepository,
-    val podcastRepository: PodcastRepository,
     withScope: WithScope,
+    private val nav: (NavGraph) -> Unit,
 ) : MainThunk, WithScope by withScope {
     val s = MutableStateFlow(initialState)
     
@@ -49,9 +53,9 @@ class MainThunkAndroid(
             MainAction.Load -> {
                 launchMain {
                     either {
-                        val books = asyncIo { bookRepository.all().bind() }
-                        val podcast = asyncIo { podcastRepository.all().bind() }
-                        val videos = asyncIo { videoRepository.all().bind() }
+                        val books = asyncIo { allBooks().bind() }
+                        val podcast = asyncIo { allPodcasts().bind() }
+                        val videos = asyncIo { allVideos().bind() }
                         
                         val items = books.await().value.map { it.title }.plus(podcast.await().value.map { it.title }).plus(videos.await().value.map { it.url })
 
@@ -75,6 +79,13 @@ class MainThunkAndroid(
             
             MainAction.Account -> {
                 s.value = s.value.copy(drawer = true)
+            }
+            MainAction.LogOut -> {
+                launch {
+                    logOut().map {
+                        nav(NavGraph.Login)
+                    }
+                }
             }
         }
     }

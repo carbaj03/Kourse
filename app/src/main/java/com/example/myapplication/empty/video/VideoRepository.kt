@@ -16,7 +16,7 @@ interface VideoDB
 fun VideoDB() = object : VideoDB {}
 
 interface VideoRepository {
-    fun all(): Either<DomainError, Videos>
+    fun allVideos(): Either<DomainError, Videos>
     fun byId(id: VideoId): Either<DomainError, Video>
     fun save(video: Video): Either<DomainError, Video>
     fun remove(id: VideoId): Either<DomainError, Video>
@@ -27,7 +27,7 @@ fun VideoRepository() =
     object : VideoRepository {
         var videos: Videos = Videos(listOf())
         
-        override fun all(): Either<DomainError, Videos> = videos.right()
+        override fun allVideos(): Either<DomainError, Videos> = videos.right()
         
         override fun byId(id: VideoId): Either<DomainError, Video> {
             TODO("Not yet implemented")
