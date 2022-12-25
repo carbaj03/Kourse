@@ -1,7 +1,7 @@
 package com.example.myapplication.asynchrony
 
 import arrow.core.Either
-import arrow.core.continuations.EffectScope
+import arrow.core.continuations.Raise
 import arrow.core.continuations.either
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
@@ -97,7 +97,7 @@ interface WithScope : CoroutineScope {
     fun <A, B> eitherIo(
         onSuccess: (A) -> Unit = {},
         onError: suspend (B) -> Unit = {},
-        f: suspend EffectScope<B>.() -> A,
+        f: suspend Raise<B>.() -> A,
     ): Job =
         launchMain {
             either { IO { f(this@either) } }.fold(onError, onSuccess)
@@ -106,7 +106,7 @@ interface WithScope : CoroutineScope {
     fun <A, E> eitherMain(
         onSuccess: (A) -> Unit = {},
         onError: (E) -> Unit = {},
-        f: suspend EffectScope<E>.() -> A,
+        f: suspend Raise<E>.() -> A,
     ): Job =
         launchMain {
             either { f(this) }.fold(onError, onSuccess)

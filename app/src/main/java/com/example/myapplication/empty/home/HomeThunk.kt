@@ -1,6 +1,7 @@
 package com.example.myapplication.empty.home
 
 import com.example.myapplication.empty.NavGraph
+import com.example.myapplication.empty.UserNavGraph
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -25,9 +26,9 @@ class HomeThunkAndroid(
 
     override fun dispatch(action: HomeAction) {
         when (action) {
-            HomeAction.Blogs -> nav(NavGraph.Blogs)
-            HomeAction.Books -> nav(NavGraph.Books())
-            HomeAction.Podcasts -> nav(NavGraph.Podcasts)
+            HomeAction.Blogs -> nav(UserNavGraph.Blogs)
+            HomeAction.Books -> nav(UserNavGraph.Books())
+            HomeAction.Podcasts -> nav(UserNavGraph.Podcasts)
         }
     }
 

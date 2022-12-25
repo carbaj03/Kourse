@@ -2,6 +2,7 @@ package com.example.myapplication.todo
 
 import arrow.optics.optics
 import com.fintonic.domain.commons.redux.types.State
+import kotlinx.serialization.Serializable
 
 @optics
 data class OpticsState(
@@ -34,7 +35,7 @@ data class ToolbarState(
 enum class BottomItem(
     open val title: String = "asdfdasf",
     open val subTitle: String? = null,
-    open val route: String
+    open val route: String,
 ) {
     Home("Podcast", null, podcastTabRoute),
     Books("Books", null, booksTabRoute),
@@ -42,8 +43,8 @@ enum class BottomItem(
 
 @optics
 data class BottomState(
-    val list: List<BottomItem>,
-    val selected: BottomItem
+    val list: List<BottomItem> = emptyList(),
+    val selected: BottomItem = BottomItem.Home
 ) : State {
     companion object
 }
@@ -104,13 +105,22 @@ data class Podcast(
     val url: String
 )
 
+@Serializable
 @JvmInline
 value class Books(
     val value: List<Book>
 )
 
+
+@Serializable
+@JvmInline
+value class BookId(
+    val value: Int
+)
+
+@Serializable
 data class Book(
-    val id: Int,
+    val id: BookId,
     val title: String,
     val type: Type = Type.Ebook,
     val genre: Genre = Genre.SelfDev,
@@ -118,11 +128,11 @@ data class Book(
     enum class Type {
         AudioBook, Ebook, Pdf
     }
-    
+
     enum class Genre {
         Romance, SelfDev,
     }
-    
+
     data class Author(
         val name: String,
     )

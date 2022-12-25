@@ -8,11 +8,12 @@ import kotlinx.coroutines.flow.StateFlow
 data class AppState(
     val fromScreen: List<NavGraph> = emptyList(),
     val currentScreen: NavGraph? = null,
-    val user: String? = null,
+    val userGraph: UserGraph? = null,
 )
 
 sealed interface AppAction {
     data class Navigate(val navGraph: NavGraph) : AppAction
+    data class User(val userGraph: UserGraph) : AppAction
 }
 
 interface AppThunk {
@@ -22,25 +23,38 @@ interface AppThunk {
 
 class AppAndroid : AppThunk {
     val s = MutableStateFlow(AppState())
-
+    
     override fun dispatch(action: AppAction) {
         when (action) {
             is AppAction.Navigate -> {
-                if (action.navGraph is NavGraph.Back) {
-                    Either.catch {
-                        s.value.fromScreen.dropLast(1).let {
-                            s.value = s.value.copy(fromScreen = it, currentScreen = it.last())
+                when (action.navGraph) {
+                    is NavGraph.Back -> {
+                        Either.catch {
+                            s.value.fromScreen.dropLast(1).let {
+                                s.value = s.value.copy(fromScreen = it, currentScreen = it.last())
+                            }
                         }
                     }
-                } else {
-                    s.value = s.value.copy(
-                        fromScreen = s.value.fromScreen.plus(NavGraph.books.modify(action.navGraph) { it.copy(new = false) }),
-                        currentScreen = action.navGraph
-                    )
+                    is AppNavGraph -> {
+                        s.value = s.value.copy(
+                            fromScreen = s.value.fromScreen,
+                            currentScreen = action.navGraph
+                        )
+                    }
+                    is UserNavGraph -> {
+                        s.value = s.value.copy(
+                            fromScreen = s.value.fromScreen.plus(UserNavGraph.books.modify(action.navGraph) { it.copy(new = false) }),
+                            currentScreen = action.navGraph
+                        )
+                    }
                 }
+            }
+            is AppAction.User -> {
+                s.value = s.value.copy(userGraph = action.userGraph)
+                dispatch(AppAction.Navigate(UserNavGraph.Main))
             }
         }
     }
-
+    
     override val state: StateFlow<AppState> = s
 }

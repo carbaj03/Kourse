@@ -1,10 +1,11 @@
 package com.example.myapplication.empty.book
 
+import com.example.myapplication.asynchrony.WithScope
 import com.example.myapplication.empty.NavGraph
 import com.example.myapplication.todo.Book
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-
+import kotlinx.coroutines.launch
 
 sealed interface BookAction {
     object Edit : BookAction
@@ -24,35 +25,35 @@ interface BookThunk {
     val state: StateFlow<BookState>
 }
 
+context(WithScope)
 class BookThunkAndroid(
     val repository: BookRepository,
     val nav: (NavGraph) -> Unit,
-    val initialState: BookState
+    val initialState: BookState,
 ) : BookThunk {
     val s = MutableStateFlow(initialState)
-
+    
     override fun dispatch(action: BookAction) {
         when (action) {
             BookAction.Edit -> {
                 s.value = s.value.copy(isEditing = true)
             }
-
             is BookAction.Back -> {
                 nav(NavGraph.Back)
             }
-
             is BookAction.Confirm -> {
-                val book = repository.save(s.value.book.copy(title = s.value.newName))
-                book.map {
-                    s.value = s.value.copy(isEditing = false, book = it, newName = it.title)
+                launch {
+                    val book = repository.save(s.value.book.copy(title = s.value.newName))
+                    book.map {
+                        s.value = s.value.copy(isEditing = false, book = it, newName = it.title)
+                    }
                 }
             }
-
             is BookAction.ChangeName -> {
                 s.value = s.value.copy(newName = action.name)
             }
         }
     }
-
+    
     override val state: StateFlow<BookState> = s
 }

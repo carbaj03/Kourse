@@ -4,21 +4,18 @@ import arrow.core.Either
 import arrow.core.left
 import com.example.myapplication.asynchrony.WithScope
 import com.example.myapplication.asynchrony.dispatchAction
+import com.example.myapplication.asynchrony.slice
 import com.example.myapplication.redux.select
 import com.example.myapplication.redux.types.Action
 import com.example.myapplication.redux.types.Error
-import com.example.myapplication.slice
 import com.fintonic.domain.commons.redux.types.CombineState
 import com.fintonic.domain.commons.redux.types.State
 import com.fintonic.domain.commons.redux.types.Store
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlin.reflect.KProperty
 import kotlin.time.Duration.Companion.seconds
+
 
 interface ThunkScreen : ThunkBooks, ThunkPodcast, ThunkToolbar
 
@@ -26,7 +23,7 @@ interface T<S : State> {
     fun load()
     fun increase()
     fun decrease()
-    
+
     val state: StateFlow<S>
 }
 
@@ -37,7 +34,7 @@ interface ThunkHome : ThunkToolbar, ThunkBottom {
 //    fun blogs()
 //    fun load()
     operator fun HomeAction.invoke()
-    
+
     val books: StateFlow<HomeState>
 }
 
@@ -45,7 +42,7 @@ interface ThunkBooks {
     fun load()
     fun increase()
     fun decrease()
-    
+
     val books: StateFlow<BooksState>
 }
 
@@ -53,7 +50,7 @@ interface ThunkPodcast {
     fun loadPodcast()
     fun increasePodcast()
     fun decreasePodcast()
-    
+
     val podcast: StateFlow<PodcastsState>
 }
 
@@ -76,7 +73,7 @@ sealed interface ToolbarAction {
 
 interface ThunkToolbar {
     fun action(action: ToolbarAction)
-    
+
     val toolbar: StateFlow<ToolbarState>
 }
 
@@ -87,7 +84,7 @@ sealed interface BottomAction {
 
 interface ThunkBottom {
     fun action(action: BottomAction)
-    
+
     val bottom: StateFlow<BottomState>
 }
 
@@ -107,6 +104,7 @@ fun interface BottomNavigator {
     suspend operator fun invoke(navigationAction: NavigationAction)
 }
 
+
 fun ThunkToolbar(
     withScope: WithScope,
     store: Store<CombineState>,
@@ -115,7 +113,7 @@ fun ThunkToolbar(
     object : ThunkToolbar,
         WithScope by withScope,
         Store<CombineState> by store {
-        
+
         //        override fun loadToolbar() =
 //            dispatchAction {
 //                slice<ToolbarState> {
@@ -137,18 +135,19 @@ fun ThunkToolbar(
 //                    copy(title = "Hello")
 //                }
 //            }
+
         override fun action(action: ToolbarAction): Unit =
             dispatchAction {
                 when (action) {
                     is ToolbarAction.Load -> slice<ToolbarState> {
                         copy(title = "Hello")
                     }
-                    
+
                     is ToolbarAction.OnBack -> navigator(action)
                     is ToolbarAction.OnClose -> navigator(action)
                 }
             }
-        
+
         override val toolbar: StateFlow<ToolbarState> by store
     }
 
@@ -211,41 +210,42 @@ fun ThunkHome(
     object : ThunkHome,
         WithScope by withScope,
         Store<CombineState> by store {
-        override fun HomeAction.invoke() =
+
+        override fun HomeAction.invoke(): Unit =
             dispatchAction {
-                when (this) {
-                    is HomeAction.Blogs -> homeNavigator(this)
-                    is HomeAction.Books -> homeNavigator(this)
-                    is HomeAction.Podcast -> homeNavigator(this)
+                when (val action = this@invoke) {
+                    is HomeAction.Blogs -> homeNavigator(action)
+                    is HomeAction.Books -> homeNavigator(action)
+                    is HomeAction.Podcast -> homeNavigator(action)
                     is HomeAction.Videos -> {
-                        tracker(this)
-                        homeNavigator(this)
+                        tracker(action)
+                        homeNavigator(action)
                     }
-                    
+
                     is HomeAction.Load -> {}
-                    is HomeAction.Bottom -> homeNavigator(this)
+                    is HomeAction.Bottom -> homeNavigator(action)
                 }
             }
-        
+
         override fun action(action: ToolbarAction): Unit =
             dispatchAction {
                 when (action) {
                     is ToolbarAction.Load -> slice<ToolbarState> {
                         copy(title = "Hello")
                     }
-                    
+
                     is ToolbarAction.OnBack -> {}
                     is ToolbarAction.OnClose -> {}
                 }
             }
-        
+
         override fun action(action: BottomAction): Unit =
             dispatchAction {
                 when (action) {
                     BottomAction.Load -> slice<BottomState> {
                         copy(list = emptyList())
                     }
-                    
+
                     is BottomAction.OnItemClick -> {
                         bottomNavigator(action)
                         slice<BottomState> {
@@ -254,7 +254,7 @@ fun ThunkHome(
                     }
                 }
             }
-        
+
         override val bottom: StateFlow<BottomState> by store
         override val books: StateFlow<HomeState> by store
         override val toolbar: StateFlow<ToolbarState> by store
@@ -267,7 +267,7 @@ fun ThunkBooks(
     object : ThunkBooks,
         WithScope by withScope,
         Store<CombineState> by store {
-        
+
         override fun load(): Unit =
             dispatchAction {
                 repeat(10) {
@@ -275,19 +275,19 @@ fun ThunkBooks(
                     delay(2.seconds)
                 }
             }
-        
+
         override fun increase(): Unit =
             dispatchAction {
                 slice<BooksState> { copy(isLoading = true) }
                 delay(1000)
                 slice<BooksState> {
                     copy(
-                        books = Books(books.value.plus(Book(books.value.size, "book${books.value.size}"))),
+                        books = Books(books.value.plus(Book(BookId(books.value.size), "book${books.value.size}"))),
                         isLoading = false
                     )
                 }
             }
-        
+
         override fun decrease(): Unit =
             dispatchAction {
                 slice<PodcastsState> { copy(isLoading = true) }
@@ -307,17 +307,24 @@ fun ThunkBooks(
                     )
                 }
             }
-        
+
         override val books: StateFlow<BooksState> by store
     }
 
+
 context(WithScope)
-        inline operator fun <reified T : State> Store<CombineState>.getValue(thisObj: Any?, property: KProperty<*>): StateFlow<T> =
-    state.map { it.select<T>()!! }.distinctUntilChanged().stateIn(
-        scope = this@WithScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = state.value.select()!!
-    )
+inline operator fun <reified T : State> Store<CombineState>.getValue(
+    thisObj: Any?,
+    property: KProperty<*>
+): StateFlow<T> =
+    state
+        .map { it.select<T>() ?: throw Exception("Add the slice") }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = this@WithScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = state.value.select() ?: throw Exception("Add the slice")
+        )
 
 fun ThunkPodcast(
     withScope: WithScope,
@@ -327,7 +334,7 @@ fun ThunkPodcast(
     object : ThunkPodcast,
         WithScope by withScope,
         Store<CombineState> by store {
-        
+
         override fun loadPodcast(): Unit =
             dispatchAction {
                 repository.getAll().bind()
@@ -336,19 +343,19 @@ fun ThunkPodcast(
 //                    delay(2.seconds)
 //                }
             }
-        
+
         override fun increasePodcast(): Unit =
             dispatchAction {
                 slice<BooksState> { copy(isLoading = true) }
                 delay(1000)
                 slice<BooksState> {
                     copy(
-                        books = Books(books.value.plus(Book(books.value.size, "book${books.value.size}"))),
+                        books = Books(books.value.plus(Book(BookId(books.value.size), "book${books.value.size}"))),
                         isLoading = false
                     )
                 }
             }
-        
+
         override fun decreasePodcast(): Unit =
             dispatchAction {
                 slice<PodcastsState> { copy(isLoading = true) }
@@ -368,7 +375,7 @@ fun ThunkPodcast(
                     )
                 }
             }
-        
+
         override val podcast: StateFlow<PodcastsState> by store
     }
 
@@ -376,9 +383,9 @@ sealed interface ApiError : Error {
     object Default : ApiError
 }
 
-sealed interface LocalError : Error {
+sealed interface LocalError :  Error {
     object Default : LocalError
-    
+
 }
 
 fun fromApi(): Either<ApiError, String> = ApiError.Default.left()

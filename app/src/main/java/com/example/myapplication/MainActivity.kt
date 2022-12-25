@@ -17,25 +17,24 @@ import arrow.core.Option
 import arrow.core.right
 import arrow.core.some
 import arrow.optics.optics
-import com.example.myapplication.asynchrony.Event
-import com.example.myapplication.asynchrony.WithScope
-import com.example.myapplication.asynchrony.dispatchAction
+import com.example.myapplication.asynchrony.*
 import com.example.myapplication.redux.Slice
-import com.example.myapplication.redux.SliceName
 import com.example.myapplication.redux.createSliceMutable
 import com.example.myapplication.redux.select
 import com.example.myapplication.redux.types.Action
-import com.example.myapplication.redux.types.ActionState
 import com.example.myapplication.tracking.AmplitudeEvent
 import com.example.myapplication.tracking.AppsFlyerEvent
 import com.example.myapplication.tracking.EventTracker
-import com.fintonic.domain.commons.redux.types.*
+import com.fintonic.domain.commons.redux.types.CombineState
+import com.fintonic.domain.commons.redux.types.Dispatcher
 import com.fintonic.domain.commons.redux.types.State
+import com.fintonic.domain.commons.redux.types.Store
 import com.fintonic.domain.utils.asynchrony.Screen
 import com.fintonic.domain.utils.asynchrony.ThunkScreenCombine
 import com.fintonic.domain.utils.asynchrony.ThunkScreenT
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import recomposeHighlighter
 import kotlin.time.Duration.Companion.seconds
 
@@ -116,7 +115,8 @@ class MainActivity : AppCompatActivity() {
 
 
 sealed class Router(override val route: String) : Screen
-sealed interface Events : Event {
+
+sealed interface Events : EventScreen {
     object OnLoad : Events
 }
 
@@ -208,7 +208,7 @@ val t: ThunkScreenT<CombineState> = ThunkScreenCombine<Router, Events>(
 
 fun ThunkScreenT<CombineState>.reset(): Unit =
     dispatchAction {
-        s1.dispatch {
+        slice<Test1> {
             copy(t = 0)
         }
         s4.dispatch {
@@ -225,6 +225,7 @@ fun ThunkScreenT<CombineState>.reset(): Unit =
 //        Action4.Counter.dispatch()
 //        Action3.Counter.dispatch()
 //    }
+
 
 fun ThunkScreenT<CombineState>.d1Action(): Unit =
     dispatchAction("4") {
@@ -270,36 +271,8 @@ fun ThunkScreenT<CombineState>.s1Action(): Unit =
 //    }.cancel()
     }
 
-context(Store<CombineState>)
-fun s2Action() =
-    s4.dispatch {
-        copy(t = 1)
-    }
-
-context(Store<CombineState>)
-fun s3Action() =
-    s3.dispatch {
-        copy(t = 3)
-    }
-
-
-context(Store<S>)
-fun <S : State> dispatch(f: S.() -> S) {
-    ActionState(f).dispatch()
-}
-
-context(Store<CombineState>)
-fun <S : State> Slice<S>.dispatch(f: S.() -> S) {
-    ActionState(f).dispatch()
-}
-
-context(Store<CombineState>)
-inline  fun <reified S : State> slice(noinline f: S.() -> S) {
-    ActionState(f).dispatch()
-}
-
-
-context(Dispatcher) inline val <S> (() -> S).mutable
+context(Dispatcher)
+inline val <S> (() -> S).mutable
     get() = this()
 
 fun ThunkScreenT<Test>.clickad(): Unit =
@@ -313,10 +286,6 @@ fun ThunkScreenT<Test>.clickad(): Unit =
 
 fun ThunkScreenT<Test>.clickaa(): Unit =
     dispatchAction {
-//        "".right().bind()
-
-        Events.OnLoad.dispatch()
-
         dispatch {
             copy(
                 isLoading = true,
@@ -326,7 +295,6 @@ fun ThunkScreenT<Test>.clickaa(): Unit =
         }
 
         delay(2200)
-
         dispatch {
             copy(counter = counter + 2)
         }
@@ -424,9 +392,9 @@ data class Test2(
 inline operator fun <reified S : State, A> Store<CombineState>.invoke(
     crossinline f: S.() -> A
 ): androidx.compose.runtime.State<A> =
-    remember(state.value.select()!!) { derivedStateOf { state.value.select<S>()?.let(f) ?: throw Exception("Implement slice") } }
+    remember(state.value.select()) { derivedStateOf { state.value.select<S>()?.let(f) ?: throw Exception("Implement slice") } }
 
 
 @Composable
-inline operator fun <reified S : State>  Store<CombineState>.invoke(): androidx.compose.runtime.State<S> =
-    remember(state.value.select()!!) { derivedStateOf { state.value.select() ?: throw Exception("Implement slice") } }
+inline operator fun <reified S : State> Store<CombineState>.invoke(): androidx.compose.runtime.State<S> =
+    remember(state.value.select()) { derivedStateOf { state.value.select() ?: throw Exception("Implement slice") } }

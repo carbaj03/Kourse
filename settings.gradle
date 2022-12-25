@@ -3,6 +3,7 @@ pluginManagement {
         gradlePluginPortal()
         google()
         mavenCentral()
+        mavenLocal()
     }
 }
 dependencyResolutionManagement {
@@ -10,6 +11,13 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        mavenLocal()
+        maven {
+            url "https://androidx.dev/storage/compose-compiler/repository/"
+        }
+        maven {
+            url "https://maven.pkg.jetbrains.space/kotlin/p/kotlin/dev/"
+        }
     }
 }
 rootProject.name = "My Application"

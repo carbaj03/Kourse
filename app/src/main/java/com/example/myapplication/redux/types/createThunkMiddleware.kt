@@ -1,6 +1,6 @@
 package com.example.myapplication.redux.types
 
-import com.example.myapplication.asynchrony.Event
+import com.example.myapplication.asynchrony.EventScreen
 import com.example.myapplication.asynchrony.ThunkEvent
 import com.example.myapplication.asynchrony.WithScope
 import com.fintonic.domain.commons.redux.types.State
@@ -30,7 +30,7 @@ fun <S : State> createThunkMiddleware(): Middleware<S> =
         }
     }
 
-context(ThunkEvent<E>) inline fun <S : State, reified E : Event> createEventMiddleware(
+context(ThunkEvent<E>) inline fun <S : State, reified E : EventScreen> createEventMiddleware(
     withScope: WithScope
 ): Middleware<S> =
     Middleware { _, next, action ->

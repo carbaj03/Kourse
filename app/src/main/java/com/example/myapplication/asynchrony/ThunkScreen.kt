@@ -1,6 +1,6 @@
 package com.fintonic.domain.utils.asynchrony
 
-import com.example.myapplication.asynchrony.Event
+import com.example.myapplication.asynchrony.EventScreen
 import com.example.myapplication.asynchrony.ThunkEvent
 import com.example.myapplication.asynchrony.WithScope
 import com.example.myapplication.redux.createStore
@@ -8,14 +8,14 @@ import com.example.myapplication.redux.types.Reducer
 import com.fintonic.domain.commons.redux.types.State
 import com.fintonic.domain.commons.redux.types.Store
 
-interface ThunkScreen<S : State, N : Screen, E : Event> :
+interface ThunkScreen<S : State, N : Screen, E : EventScreen> :
     WithScope,
     Store<S>,
     ThunkEvent<E>,
     ThunkNavigator<N> {
 
     companion object {
-        inline operator fun <reified S : State, reified N : Screen, reified E : Event> invoke(
+        inline operator fun <reified S : State, reified N : Screen, reified E : EventScreen> invoke(
             vararg reducer: Reducer<S>,
             initialState: S,
             navigator: ThunkNavigator<N>,
@@ -35,7 +35,7 @@ interface ThunkScreen<S : State, N : Screen, E : Event> :
 }
 
 
-fun <E : Event> Array<ThunkEvent<E>>.fold(): ThunkEvent<E> =
+fun <E : EventScreen> Array<ThunkEvent<E>>.fold(): ThunkEvent<E> =
     ThunkEvent {
         fold(this) { event, reducer ->
             with(reducer) { event() }

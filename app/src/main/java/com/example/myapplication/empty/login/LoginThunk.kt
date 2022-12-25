@@ -1,7 +1,9 @@
 package com.example.myapplication.empty.login
 
+import com.example.myapplication.empty.AppAction
 import com.example.myapplication.empty.AuthService
 import com.example.myapplication.empty.NavGraph
+import com.example.myapplication.empty.UserNavGraph
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +31,7 @@ interface LoginThunk {
 context(AuthService, CoroutineScope)
 class LoginThunkAndroid(
     val nav: (NavGraph) -> Unit,
+    val appAction: (AppAction) -> Unit,
 ) : LoginThunk {
     val s = MutableStateFlow(LoginState("", ""))
     
@@ -44,7 +47,9 @@ class LoginThunkAndroid(
                             delay(2000)
                             s.value = s.value.copy(error = null)
                         },
-                        { nav(NavGraph.Main(it)) }
+                        {
+                            appAction(AppAction.User(it))
+                        }
                     )
                 }
             }

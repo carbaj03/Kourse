@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class MyApplication : Application() {
     companion object {
-        
+
         val graph = AppGraphAndroid(
             store = configureStore(
                 createSlice(initialState = BooksState()) { a: ActionState<BooksState> -> a(this) },
@@ -36,11 +36,11 @@ class MyApplication : Application() {
                     delay(1.seconds)
                     return Podcasts(listOf(Podcast(id = PodcastId(1), "sadf", "adsfasf"))).right()
                 }
-                
+
             }
         )
     }
-    
+
     override fun onCreate() {
         super.onCreate()
     }

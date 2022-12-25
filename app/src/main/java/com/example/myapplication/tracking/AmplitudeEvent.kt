@@ -1,9 +1,8 @@
 package com.example.myapplication.tracking
 
-import com.example.myapplication.asynchrony.Event
+import com.example.myapplication.asynchrony.EventScreen
 
-
-sealed interface AmplitudeEvent : Event {
+sealed interface AmplitudeEvent : EventScreen {
     data class User(val properties: Properties) : AmplitudeEvent
     data class Custom(val value: String, val properties: Properties? = null) : AmplitudeEvent
     data class Screen(val properties: Properties) : AmplitudeEvent

@@ -19,12 +19,12 @@ interface SliceBuilder {
     val slices: MutableList<Slice<*>>
 }
 
-interface TrackerBuilder<E : Event> {
+interface TrackerBuilder<E : EventScreen> {
     val eventTracker: MutableList<ThunkEvent<E>>
 }
 
 
-data class ThunkBuilder<S : State, N : Screen, E : Event>(
+data class ThunkBuilder<S : State, N : Screen, E : EventScreen>(
     val initialState: S,
     val navigator: ThunkNavigator<N> = ThunkNavigatorMock(),
     val withScope: WithScope = WithScope(),
@@ -32,14 +32,14 @@ data class ThunkBuilder<S : State, N : Screen, E : Event>(
     override val eventTracker: MutableList<ThunkEvent<E>> = mutableListOf(),
 ) : ReducerBuilder<S>, TrackerBuilder<E>
 
-data class ThunkBuilderSlice<N : Screen, E : Event>(
+data class ThunkBuilderSlice<N : Screen, E : EventScreen>(
     val navigator: ThunkNavigator<N> = ThunkNavigatorMock(),
     val withScope: WithScope = WithScope(),
     override val slices: MutableList<Slice<*>> = mutableListOf(),
     override val eventTracker: MutableList<ThunkEvent<E>> = mutableListOf(),
 ) : SliceBuilder, TrackerBuilder<E>
 
-inline fun <reified S : State, reified N : Screen, reified E : Event> ThunkScreenT(
+inline fun <reified S : State, reified N : Screen, reified E : EventScreen> ThunkScreenT(
     initialState: S,
     navigator: ThunkNavigator<N>,
     withScope: WithScope,
@@ -58,7 +58,7 @@ inline fun <reified S : State, reified N : Screen, reified E : Event> ThunkScree
             )
         }
 
-inline operator fun <reified S : State, reified N : Screen, reified E : Event> ThunkScreen.Companion.invoke(
+inline operator fun <reified S : State, reified N : Screen, reified E : EventScreen> ThunkScreen.Companion.invoke(
     initialState: S,
     navigator: ThunkNavigator<N>,
     withScope: WithScope,
@@ -90,13 +90,13 @@ inline fun <reified S : State> SliceBuilder.addSlice(slice: Slice<S>) {
 }
 
 @OptIn(ExperimentalTypeInference::class)
-fun <ES : Event, E : Event> TrackerBuilder<ES>.addTracker(
+fun <ES : EventScreen, E : EventScreen> TrackerBuilder<ES>.addTracker(
     tracker: EventTracker<E>,
     @BuilderInference f: suspend ES.() -> E?,
 ) {
     eventTracker.add(ThunkEvent { f(this)?.let { tracker(it) } })
 }
 
-fun <E : Event> TrackerBuilder<E>.addTracker(f: ThunkEvent<E>) {
+fun <E : EventScreen> TrackerBuilder<E>.addTracker(f: ThunkEvent<E>) {
     eventTracker.add(f)
 }

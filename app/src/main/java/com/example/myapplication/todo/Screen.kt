@@ -10,11 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,9 +22,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 context(ThunkPodcast)
-        @OptIn(ExperimentalFoundationApi::class)
-        @Composable
-        internal fun PodcastComponent(
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun PodcastComponent(
     modifier: Modifier = Modifier,
 ) {
     val podcastState by podcast.collectAsState()
@@ -64,7 +60,8 @@ context(ThunkPodcast)
 }
 
 
-context(ThunkBooks) @OptIn(ExperimentalFoundationApi::class)
+context(ThunkBooks)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun BooksComponent(
     modifier: Modifier = Modifier,
@@ -101,7 +98,8 @@ internal fun BooksComponent(
     }
 }
 
-context(ThunkToolbar) @Composable
+context(ThunkToolbar)
+@Composable
 fun ToolbarComponent(
     modifier: Modifier = Modifier,
 ) {
@@ -137,7 +135,7 @@ fun ToolbarComponentPreview() {
         override fun action(action: ToolbarAction) {
             when (action) {
                 ToolbarAction.Load -> TODO()
-                ToolbarAction.OnBack -> s.value = s.value.copy("app", if(s.value.subTitle == null ) "rr" else null)
+                ToolbarAction.OnBack -> s.value = s.value.copy("app", if (s.value.subTitle == null) "rr" else null)
                 ToolbarAction.OnClose -> TODO()
             }
         }

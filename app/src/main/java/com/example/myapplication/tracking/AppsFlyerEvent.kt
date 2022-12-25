@@ -1,8 +1,9 @@
 package com.example.myapplication.tracking
 
-import com.example.myapplication.asynchrony.Event
+import com.example.myapplication.asynchrony.EventScreen
 
-sealed interface AppsFlyerEvent : Event {
+
+sealed interface AppsFlyerEvent : EventScreen {
     data class Custom(val value: String) : AppsFlyerEvent
 }
 

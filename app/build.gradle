@@ -2,6 +2,7 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'com.google.devtools.ksp'
+    id "kotlinx-serialization"
 }
 
 android {
@@ -42,8 +43,9 @@ android {
         compose true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.4.0-alpha02'
+        kotlinCompilerExtensionVersion '1.4.0-dev-k1.8.0-RC-4c1865595ed'
     }
+    namespace 'com.example.myapplication'
 }
 
 kotlin {
@@ -54,7 +56,7 @@ kotlin {
 
 dependencies {
     def navVersion = "2.5.3"
-    def arrowVersion = "1.1.4-alpha.15"
+    def arrowVersion = "2.0.0-SNAPSHOT"
     def ktorVersion = "2.1.3"
 
     implementation("io.ktor:ktor-client-core:$ktorVersion")
@@ -64,9 +66,14 @@ dependencies {
     implementation("io.ktor:ktor-client-logging:$ktorVersion")
     implementation("io.ktor:ktor-network-tls-certificates:$ktorVersion")
     implementation("io.ktor:ktor-client-auth:$ktorVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 
+//    implementation("io.github.carbaj03:redux:0.1.0")
+//    implementation("io.github.carbaj03:arrow:0.1.0")
+
+    implementation("io.arrow-kt:arrow-fx-coroutines:$arrowVersion")
     implementation("io.arrow-kt:arrow-optics:$arrowVersion")
     ksp("io.arrow-kt:arrow-optics-ksp-plugin:$arrowVersion")
 
@@ -74,15 +81,15 @@ dependencies {
 
     implementation "androidx.activity:activity-compose:1.6.1"
     // Material Design 3
-    implementation 'androidx.compose.material3:material3:1.1.0-alpha02'
+    implementation 'androidx.compose.material3:material3:1.1.0-alpha03'
     // or skip Material Design and build directly on top of foundational components
-    implementation 'androidx.compose.foundation:foundation:1.4.0-alpha02'
+    implementation 'androidx.compose.foundation:foundation:1.4.0-alpha03'
     // or only import the main APIs for the underlying toolkit systems,
     // such as input and measurement/layout
-    implementation 'androidx.compose.ui:ui:1.4.0-alpha02'
+    implementation 'androidx.compose.ui:ui:1.4.0-alpha03'
     // Android Studio Preview support
-    implementation 'androidx.compose.ui:ui-tooling-preview:1.4.0-alpha02'
-    debugImplementation 'androidx.compose.ui:ui-tooling:1.4.0-alpha02'
+    implementation 'androidx.compose.ui:ui-tooling-preview:1.4.0-alpha03'
+    debugImplementation 'androidx.compose.ui:ui-tooling:1.4.0-alpha03'
 
 
     implementation 'androidx.core:core-ktx:1.9.0'

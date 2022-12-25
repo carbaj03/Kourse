@@ -1,33 +1,28 @@
 package com.example.myapplication.todo
 
-import android.graphics.drawable.Icon
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.google.android.material.bottomnavigation.BottomNavigationItemView
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 import recomposeHighlighter
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 
 context(ThunkHome)
-        @OptIn(ExperimentalMaterial3Api::class)
-        @Composable
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun Screen() {
 
     LaunchedEffect(Unit) {
@@ -61,20 +56,40 @@ fun Screen() {
 //    Screen.FriendsList,
 //)
 
+@SuppressLint("StateFlowValueCalledInComposition")
+@Composable
+fun <T> StateFlow<T?>.collectAsState(
+    initial: T,
+    context: CoroutineContext = EmptyCoroutineContext
+): State<T> =
+    collectAsStateNull(value ?: initial, context)
+
+@Composable
+fun <T : R, R> Flow<T?>.collectAsStateNull(
+    initial: R,
+    context: CoroutineContext = EmptyCoroutineContext
+): State<R> =
+    produceState(initial, this, context) {
+        if (context == EmptyCoroutineContext) {
+            collect { it?.let { value = it } }
+        } else withContext(context) {
+            collect { it?.let { value = it } }
+        }
+    }
+
 context(ThunkHome)
-        @OptIn(ExperimentalMaterial3Api::class)
-        @Composable
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun NavGraphBuilder.Bottom(
     navController: NavHostController,
     thunkScreen: ThunkScreen,
     thunkScreen1: ThunkScreen,
 ) {
-    val state by bottom.collectAsState()
+    val state: BottomState by bottom.collectAsState(initial = BottomState())
 
     LaunchedEffect(Unit) {
         HomeAction.Load()
     }
-
 
     Scaffold(
         bottomBar = {

@@ -3,22 +3,22 @@ package com.example.myapplication.asynchrony
 import com.example.myapplication.tracking.EventTracker
 import com.example.myapplication.redux.types.Action
 
-interface Event : Action
+interface EventScreen : Action
 
-fun interface ThunkEvent<E : Event> {
+fun interface ThunkEvent<E : EventScreen> {
     suspend operator fun E.invoke()
 }
 
 context(ThunkEvent<E>)
-        suspend inline fun <E : Event> E.track() {
+suspend inline fun <E : EventScreen> E.track() {
     invoke()
 }
 
-operator fun <E : Event, T : Event> EventTracker<T>.invoke(
+operator fun <E : EventScreen, T : EventScreen> EventTracker<T>.invoke(
     f: suspend E.() -> T
 ): ThunkEvent<E> =
     ThunkEvent { f() }
 
 
-operator fun <E : Event> ThunkEvent<E>.plus(other: ThunkEvent<E>): Array<ThunkEvent<E>> =
+operator fun <E : EventScreen> ThunkEvent<E>.plus(other: ThunkEvent<E>): Array<ThunkEvent<E>> =
     arrayOf(this, other)

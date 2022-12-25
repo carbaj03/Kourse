@@ -1,6 +1,6 @@
 package com.fintonic.domain.utils.asynchrony
 
-import com.example.myapplication.asynchrony.Event
+import com.example.myapplication.asynchrony.EventScreen
 import com.example.myapplication.asynchrony.ThunkEvent
 import com.example.myapplication.asynchrony.WithScope
 import com.example.myapplication.redux.Slice
@@ -32,7 +32,7 @@ fun WithActions(): WithActions =
         override val actions: MutableList<Action> = mutableListOf()
     }
 
-inline fun <reified S : State, reified N : Screen, reified E : Event> ThunkScreenT(
+inline fun <reified S : State, reified N : Screen, reified E : EventScreen> ThunkScreenT(
     vararg reducer: Reducer<S>,
     eventTracker: Array<ThunkEvent<E>>,
     initialState: S,
@@ -54,7 +54,7 @@ inline fun <reified S : State, reified N : Screen, reified E : Event> ThunkScree
         ) {}
 
 
-inline fun <reified N : Screen, reified E : Event> ThunkScreenCombine(
+inline fun <reified N : Screen, reified E : EventScreen> ThunkScreenCombine(
     vararg slice: Slice<*> = arrayOf(),
     eventTracker: Array<ThunkEvent<E>>,
     navigator: ThunkNavigator<N>,

@@ -2,6 +2,7 @@ package com.example.myapplication.empty.main
 
 import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -26,7 +27,7 @@ context(HomeThunk, BooksThunk)
         @OptIn(ExperimentalMaterial3Api::class)
         @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
         @Composable
-        operator fun MainThunk.invoke(
+fun MainThunk.MainScreen(
     booksLazyListState: LazyListState,
 ) {
     LaunchedEffect(Unit) {
@@ -92,9 +93,20 @@ fun Drawer(
     val selectedItem = remember { mutableStateOf(items[0]) }
     
     ModalNavigationDrawer(
+        modifier = Modifier
+            .fillMaxHeight()
+            .background(
+                color = NavigationDrawerItemDefaults
+                    .colors()
+                    .containerColor(selected = false).value
+            ),
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            ModalDrawerSheet(
+                modifier = Modifier
+                    .fillMaxHeight()
+//                    .verticalScroll(rememberScrollState())
+            ) {
                 items.forEach { item ->
                     NavigationDrawerItem(
                         icon = { Icon(item, contentDescription = null) },
@@ -117,7 +129,7 @@ fun Drawer(
                 Spacer(Modifier.padding(16.dp))
                 Divider()
                 Text(text = "sadf", Modifier.padding(16.dp))
-                repeat(5) {
+                repeat(3) {
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
                         label = {
@@ -133,6 +145,7 @@ fun Drawer(
                         badge = { Text(text = "22") }
                     )
                 }
+                Spacer(Modifier.weight(1f))
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                     label = {

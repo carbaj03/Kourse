@@ -16,8 +16,13 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import arrow.core.Either
+import arrow.core.right
+import com.example.myapplication.asynchrony.WithScope
 import com.example.myapplication.todo.Book
+import com.example.myapplication.todo.BookId
 import com.example.myapplication.todo.Books
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -99,7 +104,7 @@ fun BooksComponent(
     onSelect: (Book) -> Unit,
     onLongPress: (Book) -> Unit,
     lazyListState: LazyListState,
-    modifier: Modifier
+    modifier: Modifier,
 ) {
     LazyColumn(
         state = lazyListState,
@@ -118,5 +123,25 @@ fun BooksComponent(
                     .height(58.dp)
             )
         }
+    }
+}
+
+@Preview
+@Composable
+internal fun Preview() {
+    val books = Books(buildList {
+        repeat(30) {
+            add(Book(id = BookId(it), title = "Book $it"))
+        }
+    })
+    val bookNetwork = object : BookNetwork {
+        override suspend fun getAll(): Either<NetworkError, Books> = books.right()
+    }
+    with(WithScope()) {
+        BookThunkAndroid(
+            repository = with(bookNetwork) { with(BookDB()) { BookRepository() } },
+            nav = {},
+            initialState = BookState(books.value.first())
+        ).BookScreen()
     }
 }
