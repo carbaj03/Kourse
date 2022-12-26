@@ -67,8 +67,9 @@ dependencies {
     implementation("io.ktor:ktor-network-tls-certificates:$ktorVersion")
     implementation("io.ktor:ktor-client-auth:$ktorVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
-
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+
+
 
 //    implementation("io.github.carbaj03:redux:0.1.0")
 //    implementation("io.github.carbaj03:arrow:0.1.0")
@@ -78,27 +79,24 @@ dependencies {
     ksp("io.arrow-kt:arrow-optics-ksp-plugin:$arrowVersion")
 
     implementation("androidx.navigation:navigation-compose:$navVersion")
-
     implementation "androidx.activity:activity-compose:1.6.1"
-    // Material Design 3
     implementation 'androidx.compose.material3:material3:1.1.0-alpha03'
-    // or skip Material Design and build directly on top of foundational components
     implementation 'androidx.compose.foundation:foundation:1.4.0-alpha03'
-    // or only import the main APIs for the underlying toolkit systems,
-    // such as input and measurement/layout
     implementation 'androidx.compose.ui:ui:1.4.0-alpha03'
-    // Android Studio Preview support
     implementation 'androidx.compose.ui:ui-tooling-preview:1.4.0-alpha03'
     debugImplementation 'androidx.compose.ui:ui-tooling:1.4.0-alpha03'
-
+    implementation 'com.google.android.gms:play-services-auth:20.4.0'
 
     implementation 'androidx.core:core-ktx:1.9.0'
     implementation 'androidx.appcompat:appcompat:1.5.1'
     implementation 'com.google.android.material:material:1.7.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.4"
     testImplementation 'junit:junit:4.13.2'
 
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.4.0-alpha03")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.4.0-alpha03")
     androidTestImplementation 'androidx.test.ext:junit:1.1.4'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
 }

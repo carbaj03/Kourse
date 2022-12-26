@@ -2,4 +2,5 @@
     <string name="app_name">My Application</string>
     <string name="profile">profile</string>
     <string name="friends_list">friends</string>
+    <string name="gcp_id">friends</string>
 </resources>
