@@ -19,8 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.asynchrony.with
@@ -31,6 +29,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 sealed interface User
 
@@ -60,20 +60,36 @@ fun Settings.toggle(): Mode =
 
 
 data class AppState(
-    val screen: Screen = Splash,
+    val screen: Screen = Initial,
     val user: User = Anonymous,
     val settings: Settings = Settings(Mode.Light)
 )
 
+context(Reducer, SideEffect)
+fun AppState.init() {
+    navigate { createSplash() }
+}
+
 inline fun User.logged(f: (LoggedUser) -> Unit): Unit =
     when (this) {
-        Anonymous -> {}
+        is Anonymous -> {}
         is LoggedUser -> f(this)
     }
 
 sealed interface Screen
 
-object Splash : Screen
+object Initial : Screen
+
+data class Splash(
+    val duration: Duration,
+    val action: () -> Unit
+) : Screen
+
+
+data class ProfileScreen(
+    val login: Button,
+    val signUp: Button,
+) : Screen
 
 data class SignupScreen(
     val toolbar: Toolbar,
@@ -94,7 +110,7 @@ data class SignupPasswordScreen(
 ) : Screen
 
 
-data class ProfileScreen(
+data class LoginScreen(
     val toolbar: Toolbar,
     val email: String,
     val next: Button,
@@ -106,8 +122,9 @@ data class ProfileScreen(
 data class ChatScreen(
     val toolbar: Toolbar,
     val content: Content,
-    val toSend: String,
+    val toSend: TextField,
     val send: Button,
+    val receive: () -> Unit
 ) : Screen {
     sealed interface Content {
         data class Messages(val msg: List<Message>) : Content
@@ -160,12 +177,12 @@ data class Toolbar(
 
 data class Button(
     val text: Text,
-//    val action: suspend () -> Unit
+    val action: () -> Unit
 ) : UiComponent
 
 data class TextField(
     val text: Text,
-    val onChange: () -> Unit
+    val onChange: (String) -> Unit
 )
 
 sealed interface Text {
@@ -183,8 +200,10 @@ suspend fun login(
     name: String,
     password: String,
 ): User? {
-    return if (name == "root" && password == "root") LoggedUser(LoggedUser.Id(1), "name")
-    else null
+    return if (name == "root" && password == "root")
+        LoggedUser(LoggedUser.Id(1), "name")
+    else
+        null
 }
 
 suspend fun signupEmail(
@@ -212,7 +231,7 @@ fun MessageRepository(): MessageRepository = object : MessageRepository {
     private val f = MutableSharedFlow<Message>(1)
 
     override suspend fun Message.send() {
-        f.emit(Message("Both", "reposnse to ${text}", ""))
+        f.emit(Message("Both", "response to $text", ""))
     }
 
     override fun receive(): Flow<Message> =
@@ -230,45 +249,140 @@ suspend fun sendMessage(msg: String, author: String): Unit? {
 fun receiveSms(): Flow<Message> =
     repository.receive()
 
-fun createProfileScreen(): ProfileScreen {
-    return ProfileScreen(
-        toolbar = Toolbar(title = H1("Profile")),
+context(Reducer, SideEffect)
+fun createLoginScreen(): LoginScreen {
+    return LoginScreen(
+        toolbar = Toolbar(title = H1("Login - Screen")),
         email = "",
-        signUp = Button(text = Normal("SignUp")),
-        microsoft = Button(Normal("Microsoft Account")),
-        google = Button(Normal("Google Account")),
-        next = Button(Normal("Continue")),
+        signUp = Button(
+            text = Normal("SignUp"),
+            action = { navigate { createSignupScreen() } }
+        ),
+        microsoft = Button(
+            text = Normal(value = "Microsoft Account"),
+            action = { }
+        ),
+        google = Button(
+            text = Normal("Google Account"),
+            action = { }
+        ),
+        next = Button(
+            text = Normal("Continue"),
+            action = { navigate { createSignupPasswordScreen() } }
+        ),
     )
 }
 
+fun interface Reducer {
+    fun reduce(old: AppState.() -> AppState)
+    fun navigate(old: Screen.() -> Screen): Unit =
+        reduce { copy(screen = old(screen)) }
+}
 
+fun interface SideEffect {
+    fun sideEffect(old: context(CoroutineScope) AppState.() -> Unit)
+}
+
+
+context(Reducer, SideEffect)
+fun createSplash(): Splash =
+    Splash(
+        duration = 1.seconds,
+        action = { navigate { createProfileScreen() } }
+    )
+
+context(Reducer, SideEffect)
+fun createProfileScreen(): ProfileScreen =
+    ProfileScreen(
+        login = Button(
+            text = Normal("Login"),
+            action = {
+                reduce {
+                    copy(
+                        screen = createLoginScreen(),
+                        user = LoggedUser(LoggedUser.Id(1), "Yo")
+                    )
+                }
+            }
+        ),
+        signUp = Button(text = Normal("Signup"), action = {})
+    )
+
+context(Reducer, SideEffect)
 fun createChatScreen(): ChatScreen {
     return ChatScreen(
         toolbar = Toolbar(title = H1("Chat")),
-        content = ChatScreen.Content.Examples(Normal(""), Normal(""), Normal("")),
-        send = Button(H1("Send")),
-        toSend = ""
+        content = ChatScreen.Content.Examples(
+            exmaple1 = Normal(""),
+            exmaple2 = Normal(""),
+            exmaple3 = Normal("")
+        ),
+        send = Button(H1("Send"),
+            action = {
+                sideEffect {
+                    if (screen is ChatScreen)
+                        launch { sendMessage(screen.toSend.text.value, (user as LoggedUser).name) }
+                }
+                navigate {
+                    if (this is ChatScreen) copy(
+                        content = when (content) {
+                            is ChatScreen.Content.Examples -> ChatScreen.Content.Messages(listOf(Message("Both", text = toSend.text.value, "")))
+                            is ChatScreen.Content.Messages -> ChatScreen.Content.Messages(content.msg.plus(Message("Both", toSend.text.value, "")))
+                        }
+                    ) else this
+                }
+            }
+        ),
+        toSend = TextField(
+            text = Normal(""),
+            onChange = {
+                navigate {
+                    if (this is ChatScreen) copy(toSend = toSend.copy(text = Normal(it)))
+                    else this
+                }
+            }
+        ),
+        receive = {
+            sideEffect {
+                launch {
+                    receiveSms().collect {
+                        navigate {
+                            if (this is ChatScreen) copy(
+                                content = when (content) {
+                                    is ChatScreen.Content.Examples -> content
+                                    is ChatScreen.Content.Messages -> content.copy(content.msg.plus(it))
+                                }
+                            ) else this
+                        }
+                    }
+                }
+            }
+        }
     )
 }
 
 fun createSignupScreen(): SignupScreen {
     return SignupScreen(
         toolbar = Toolbar(title = H1("Signup")),
-        google = Button(Normal("Google Account")),
-        microsoft = Button(Normal("Microsoft Account")),
-        login = Button(Normal("Log in")),
-        next = Button(Normal("Continue")),
+        google = Button(Normal("Google Account"), action = {}),
+        microsoft = Button(Normal("Microsoft Account"), action = {}),
+        login = Button(Normal("Log in"), action = {}),
+        next = Button(Normal("Continue"), action = {}),
         email = "",
     )
 }
 
+context(Reducer, SideEffect)
 fun createSignupPasswordScreen(): SignupPasswordScreen {
     return SignupPasswordScreen(
         toolbar = Toolbar(title = H1("Signup - Password")),
-        google = Button(Normal("Google Account")),
-        microsoft = Button(Normal("Microsoft Account")),
-        login = Button(Normal("Log in")),
-        next = Button(Normal("Continue")),
+        google = Button(Normal("Google Account"), action = {}),
+        microsoft = Button(Normal("Microsoft Account"), action = {}),
+        login = Button(Normal("Log in"), action = {}),
+        next = Button(
+            text = Normal("Continue"),
+            action = { navigate { createChatScreen() } }
+        ),
         password = TextField(Normal(""), {}),
     )
 }
@@ -302,15 +416,23 @@ fun App() {
     var app: AppState by remember {
         mutableStateOf(
             AppState(
-                screen = Splash,
+                screen = Initial,
                 settings = Settings(mode = color)
             )
         )
     }
 
-    with(scope, app) {
+    val reducer: Reducer = remember {
+        Reducer { old -> app = old(app) }
+    }
+
+    val sideEffect: SideEffect = remember {
+        SideEffect { old -> scope.launch { old(app) } }
+    }
+
+    with(scope, app, reducer, sideEffect) {
         when (val screen: Screen = app.screen) {
-            is ProfileScreen -> {
+            is LoginScreen -> {
                 Column(Modifier.fillMaxSize()) {
                     Text(
                         text = screen.toolbar.title.value,
@@ -320,7 +442,7 @@ fun App() {
                         value = screen.email,
                         onValueChange = {
                             app = app.copy(
-                                screen = (app.screen as ProfileScreen).copy(email = it)
+                                screen = (app.screen as LoginScreen).copy(email = it)
                             )
                         }
                     )
@@ -363,12 +485,16 @@ fun App() {
                     }
                 }
             }
+            is Initial -> {
+                LaunchedEffect(Unit) {
+                    app.init()
+                }
+            }
             is Splash -> {
                 LaunchedEffect(Unit) {
-                    delay(1000)
+                    delay(screen.duration)
                     app = app.copy(screen = createProfileScreen())
                 }
-
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(text = "Splash")
                 }
@@ -458,27 +584,28 @@ fun App() {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("messageToSend"),
-                            value = screen.toSend,
+                            value = screen.toSend.text.value,
                             onValueChange = {
-                                println("Text changed")
-                                app = app.copy(screen = screen.copy(toSend = it)) },
+//                                screen.toSend.onChange(it)
+                                app = app.copy(screen = screen.copy(toSend = screen.toSend.copy(Normal(it))))
+                            },
                             trailingIcon = {
                                 IconButton(
-                                    modifier = Modifier.testTag("sendMessage").semantics { contentDescription = "sendMessage"},
+                                    modifier = Modifier.testTag("sendMessage"),
                                     onClick = {
-                                        println("Text clicked")
                                         scope.launch {
                                             app.user.logged { user ->
-                                                sendMessage(screen.toSend, user.name)?.let {
+                                                sendMessage(screen.toSend.text.value, user.name)?.let {
                                                     app = app.copy(
                                                         screen = screen.copy(
+                                                            toSend = screen.toSend.copy(text = Normal("")),
                                                             content = ChatScreen.Content.Messages(
                                                                 when (val content = screen.content) {
                                                                     is ChatScreen.Content.Examples -> {
-                                                                        listOf(Message(user.name, screen.toSend, ""))
+                                                                        listOf(Message(user.name, "me - " + screen.toSend.text.value, ""))
                                                                     }
                                                                     is ChatScreen.Content.Messages -> {
-                                                                        content.msg.plus(Message(user.name, screen.toSend, ""))
+                                                                        content.msg.plus(Message(user.name, "me - " + screen.toSend.text.value, ""))
                                                                     }
                                                                 }
                                                             )
@@ -501,7 +628,9 @@ fun App() {
                 }
             }
             is SignupScreen -> {
-                Column(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                Column(
+                    modifier = Modifier.horizontalScroll(rememberScrollState())
+                ) {
                     Text(
                         text = screen.toolbar.title.value,
                         style = screen.toolbar.title.toStyle,
@@ -609,8 +738,23 @@ fun App() {
                     }
                 }
             }
+            is ProfileScreen -> {
+                Column {
+                    Text("Profile")
+                    Button(onClick = { screen.login.action() }) {
+                        Text(
+                            text = screen.login.text.value,
+                            style = screen.login.text.toStyle,
+                        )
+                    }
+                    Button(onClick = { screen.signUp.action() }) {
+                        Text(
+                            text = screen.signUp.text.value,
+                            style = screen.signUp.text.toStyle,
+                        )
+                    }
+                }
+            }
         }
     }
-
-
 }

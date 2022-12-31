@@ -18,13 +18,15 @@ import org.junit.runner.RunWith
 class ExampleInstrumentedTest {
 
     @get:Rule
-    val rule = createComposeRule().apply { mainClock.autoAdvance = false }
+    val rule = createComposeRule()
 
     @Test
     fun useAppContext() {
+
         rule.setContent {
             App()
         }
+
 
         rule.onNodeWithText("Splash").assertExists()
 
@@ -32,38 +34,48 @@ class ExampleInstrumentedTest {
 
         rule.onNodeWithText("Profile").assertExists()
 
-        rule.mainClock.advanceTimeByFrame()
+//        rule.mainClock.advanceTimeByFrame()
+
+        rule.onNodeWithText("Login").performClick()
+
+//        rule.mainClock.advanceTimeByFrame()
+
+        rule.onNodeWithText("Login - Screen").assertExists()
+
+//        rule.mainClock.advanceTimeByFrame()
 
         rule.onNodeWithText("Continue").performClick()
 
-        rule.mainClock.advanceTimeByFrame()
+//        rule.mainClock.advanceTimeByFrame()
 
         rule.onNodeWithText("Signup - Password", ignoreCase = false).assertExists()
 
-        rule.mainClock.advanceTimeByFrame()
+//        rule.mainClock.advanceTimeByFrame()
 
         rule.onNodeWithText("Continue").performClick()
 
-        rule.mainClock.advanceTimeByFrame()
+//        rule.mainClock.advanceTimeByFrame()
 
         rule.onNodeWithText("Chat").assertExists()
 
-        rule.mainClock.advanceTimeByFrame()
+//        rule.mainClock.advanceTimeByFrame()
 
         rule.onNodeWithTag("messageToSend").performTextInput("Hi")
 
-        rule.mainClock.advanceTimeByFrame()
+//        rule.mainClock.advanceTimeByFrame()
 
         rule.onNodeWithTag("sendMessage").performClick()
         rule.onNodeWithTag("sendMessage").performClick()
 
-        rule.mainClock.advanceTimeByFrame()
+//        rule.mainClock.advanceTimeByFrame()
 
         rule.onNodeWithTag("messageToSend").performTextInput("")
 
-        rule.mainClock.advanceTimeByFrame()
+//        rule.mainClock.advanceTimeByFrame()
 
-        rule.onNodeWithText("Hi").assertExists()
+        rule.onNodeWithText("me - Hi").assertExists()
+
+        rule.onNodeWithText("response to Hi").assertExists()
 
     }
 
