@@ -22,6 +22,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.asynchrony.with
+import com.example.myapplication.vanilla.Button.State.Disabled
+import com.example.myapplication.vanilla.Button.State.Enabled
 import com.example.myapplication.vanilla.IsEqual.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -67,7 +69,7 @@ data class AppState(
 
 context(Reducer, SideEffect)
 fun AppState.init() {
-    navigate { createSplash() }
+    navigate<Initial> { createSplash() }
 }
 
 inline fun User.logged(f: (LoggedUser) -> Unit): Unit =
@@ -107,17 +109,26 @@ data class SignupPasswordScreen(
     val login: Button,
     val google: Button,
     val microsoft: Button,
-) : Screen
-
+    val errors: List<Error>,
+) : Screen {
+    sealed interface Error {
+        object InvalidPassword : Error
+    }
+}
 
 data class LoginScreen(
     val toolbar: Toolbar,
-    val email: String,
+    val email: TextField,
     val next: Button,
     val signUp: Button,
     val google: Button,
     val microsoft: Button,
-) : Screen
+    val errors: List<Error>
+) : Screen {
+    sealed interface Error {
+        object InvalidEmail : Error
+    }
+}
 
 data class ChatScreen(
     val toolbar: Toolbar,
@@ -177,8 +188,19 @@ data class Toolbar(
 
 data class Button(
     val text: Text,
-    val action: () -> Unit
-) : UiComponent
+    val state: State,
+) : UiComponent {
+    sealed interface State {
+        data class Enabled(val action: () -> Unit) : State
+        object Disabled : State
+    }
+}
+
+fun Button.action(): Unit =
+    when (state) {
+        Disabled -> {}
+        is Enabled -> state.action()
+    }
 
 data class TextField(
     val text: Text,
@@ -253,35 +275,82 @@ context(Reducer, SideEffect)
 fun createLoginScreen(): LoginScreen {
     return LoginScreen(
         toolbar = Toolbar(title = H1("Login - Screen")),
-        email = "",
+        email = TextField(
+            text = Normal(""),
+            onChange = {
+                navigate<LoginScreen> {
+                    copy(email = email.copy(text = Normal(it)))
+                }
+            }),
         signUp = Button(
             text = Normal("SignUp"),
-            action = { navigate { createSignupScreen() } }
+            state = Enabled { navigate { createSignupScreen() } }
         ),
         microsoft = Button(
             text = Normal(value = "Microsoft Account"),
-            action = { }
+            state = Disabled
         ),
         google = Button(
             text = Normal("Google Account"),
-            action = { }
+            state = Disabled
         ),
         next = Button(
             text = Normal("Continue"),
-            action = { navigate { createSignupPasswordScreen() } }
+            state = Enabled {
+                sideEffect {
+                    if (screen is LoginScreen)
+                        if (isValidEmail(screen.email.text.value)) navigate<LoginScreen> { createSignupPasswordScreen() }
+                        else reduce { copy(screen = (screen as LoginScreen).copy(errors = screen.errors.plus(LoginScreen.Error.InvalidEmail))) }
+                }
+            }
         ),
+        errors = emptyList()
     )
+}
+
+val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}\$")
+
+fun isValidEmail(email: String): Boolean {
+    return emailRegex.matches(email)
+}
+
+
+val passwordRegex = Regex("^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}\$")
+
+fun isValidPassword(password: String): Boolean {
+    return password.isNotEmpty()
+//    return passwordRegex.matches(password)
 }
 
 fun interface Reducer {
     fun reduce(old: AppState.() -> AppState)
-    fun navigate(old: Screen.() -> Screen): Unit =
-        reduce { copy(screen = old(screen)) }
 }
 
+@JvmName("other")
+inline fun <reified A : Screen> Reducer.navigate(crossinline old: A.() -> Screen): Unit =
+    reduce {
+        copy(
+            screen = when (screen) {
+                is A -> old(screen)
+                else -> screen
+            }
+        )
+    }
+
+inline fun Reducer.navigate(crossinline old: Screen.() -> Screen): Unit =
+    navigate<Screen>(old)
+
 fun interface SideEffect {
-    fun sideEffect(old: context(CoroutineScope) AppState.() -> Unit)
+    fun sideEffect(old: context(AppState) CoroutineScope.() -> Unit)
 }
+
+inline fun <reified A : Screen> SideEffect.sideEffect(crossinline old: context(A) CoroutineScope.() -> Unit): Unit =
+    sideEffect {
+        when (screen) {
+            is A -> old(screen, this)
+            else -> screen
+        }
+    }
 
 
 context(Reducer, SideEffect)
@@ -296,7 +365,7 @@ fun createProfileScreen(): ProfileScreen =
     ProfileScreen(
         login = Button(
             text = Normal("Login"),
-            action = {
+            state = Enabled {
                 reduce {
                     copy(
                         screen = createLoginScreen(),
@@ -305,7 +374,7 @@ fun createProfileScreen(): ProfileScreen =
                 }
             }
         ),
-        signUp = Button(text = Normal("Signup"), action = {})
+        signUp = Button(text = Normal("Signup"), state = Disabled)
     )
 
 context(Reducer, SideEffect)
@@ -318,7 +387,7 @@ fun createChatScreen(): ChatScreen {
             exmaple3 = Normal("")
         ),
         send = Button(H1("Send"),
-            action = {
+            state = Enabled {
                 sideEffect {
                     if (screen is ChatScreen)
                         launch { sendMessage(screen.toSend.text.value, (user as LoggedUser).name) }
@@ -336,9 +405,8 @@ fun createChatScreen(): ChatScreen {
         toSend = TextField(
             text = Normal(""),
             onChange = {
-                navigate {
-                    if (this is ChatScreen) copy(toSend = toSend.copy(text = Normal(it)))
-                    else this
+                navigate<ChatScreen> {
+                    copy(toSend = toSend.copy(text = Normal(it)))
                 }
             }
         ),
@@ -346,13 +414,13 @@ fun createChatScreen(): ChatScreen {
             sideEffect {
                 launch {
                     receiveSms().collect {
-                        navigate {
-                            if (this is ChatScreen) copy(
+                        navigate<ChatScreen> {
+                            copy(
                                 content = when (content) {
                                     is ChatScreen.Content.Examples -> content
                                     is ChatScreen.Content.Messages -> content.copy(content.msg.plus(it))
                                 }
-                            ) else this
+                            )
                         }
                     }
                 }
@@ -364,10 +432,10 @@ fun createChatScreen(): ChatScreen {
 fun createSignupScreen(): SignupScreen {
     return SignupScreen(
         toolbar = Toolbar(title = H1("Signup")),
-        google = Button(Normal("Google Account"), action = {}),
-        microsoft = Button(Normal("Microsoft Account"), action = {}),
-        login = Button(Normal("Log in"), action = {}),
-        next = Button(Normal("Continue"), action = {}),
+        google = Button(text = Normal("Google Account"), state = Disabled),
+        microsoft = Button(text = Normal("Microsoft Account"), state = Disabled),
+        login = Button(text = Normal("Log in"), state = Disabled),
+        next = Button(text = Normal("Continue"), state = Disabled),
         email = "",
     )
 }
@@ -376,14 +444,27 @@ context(Reducer, SideEffect)
 fun createSignupPasswordScreen(): SignupPasswordScreen {
     return SignupPasswordScreen(
         toolbar = Toolbar(title = H1("Signup - Password")),
-        google = Button(Normal("Google Account"), action = {}),
-        microsoft = Button(Normal("Microsoft Account"), action = {}),
-        login = Button(Normal("Log in"), action = {}),
+        google = Button(Normal("Google Account"), state = Disabled),
+        microsoft = Button(Normal("Microsoft Account"), state = Disabled),
+        login = Button(Normal("Log in"), state = Disabled),
         next = Button(
             text = Normal("Continue"),
-            action = { navigate { createChatScreen() } }
+            state = Disabled
         ),
-        password = TextField(Normal(""), {}),
+        password = TextField(
+            text = Normal(""),
+            onChange = {
+                navigate<SignupPasswordScreen> {
+                    copy(
+                        password = password.copy(text = Normal(it)),
+                        next = next.copy(
+                            state = if (isValidPassword(it)) Enabled { navigate { createChatScreen() } }
+                            else Disabled
+                        )
+                    )
+                }
+            }),
+        errors = emptyList()
     )
 }
 
@@ -427,7 +508,7 @@ fun App() {
     }
 
     val sideEffect: SideEffect = remember {
-        SideEffect { old -> scope.launch { old(app) } }
+        SideEffect { old -> old(app, scope) }
     }
 
     with(scope, app, reducer, sideEffect) {
@@ -439,10 +520,10 @@ fun App() {
                         style = screen.toolbar.title.toStyle,
                     )
                     OutlinedTextField(
-                        value = screen.email,
+                        value = screen.email.text.value,
                         onValueChange = {
                             app = app.copy(
-                                screen = (app.screen as LoginScreen).copy(email = it)
+                                screen = (app.screen as LoginScreen).copy(email = (app.screen as LoginScreen).email.copy(text = Normal(it)))
                             )
                         }
                     )
