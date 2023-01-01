@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import recomposeHighlighter
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -95,7 +96,7 @@ data class ProfileScreen(
 
 data class SignupScreen(
     val toolbar: Toolbar,
-    val email: String,
+    val email: TextField,
     val next: Button,
     val login: Button,
     val google: Button,
@@ -279,7 +280,14 @@ fun createLoginScreen(): LoginScreen {
             text = Normal(""),
             onChange = {
                 navigate<LoginScreen> {
-                    copy(email = email.copy(text = Normal(it)))
+                    copy(
+                        email = email.copy(text = Normal(it)),
+                        next = next.copy(
+                            state = if (isValidEmail(email.text.value)) Enabled {
+                                createSignupPasswordScreen()
+                            } else Disabled
+                        )
+                    )
                 }
             }),
         signUp = Button(
@@ -296,13 +304,7 @@ fun createLoginScreen(): LoginScreen {
         ),
         next = Button(
             text = Normal("Continue"),
-            state = Enabled {
-                sideEffect {
-                    if (screen is LoginScreen)
-                        if (isValidEmail(screen.email.text.value)) navigate<LoginScreen> { createSignupPasswordScreen() }
-                        else reduce { copy(screen = (screen as LoginScreen).copy(errors = screen.errors.plus(LoginScreen.Error.InvalidEmail))) }
-                }
-            }
+            state = Disabled
         ),
         errors = emptyList()
     )
@@ -429,6 +431,7 @@ fun createChatScreen(): ChatScreen {
     )
 }
 
+context(Reducer, SideEffect)
 fun createSignupScreen(): SignupScreen {
     return SignupScreen(
         toolbar = Toolbar(title = H1("Signup")),
@@ -436,7 +439,10 @@ fun createSignupScreen(): SignupScreen {
         microsoft = Button(text = Normal("Microsoft Account"), state = Disabled),
         login = Button(text = Normal("Log in"), state = Disabled),
         next = Button(text = Normal("Continue"), state = Disabled),
-        email = "",
+        email = TextField(
+            text = Normal(""),
+            onChange = { navigate<SignupScreen> { copy(email = email.copy(text = Normal(it))) } }
+        ),
     )
 }
 
@@ -514,27 +520,24 @@ fun App() {
     with(scope, app, reducer, sideEffect) {
         when (val screen: Screen = app.screen) {
             is LoginScreen -> {
-                Column(Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .recomposeHighlighter()
+                        .fillMaxSize()
+                ) {
                     Text(
+                        modifier = Modifier.recomposeHighlighter(),
                         text = screen.toolbar.title.value,
                         style = screen.toolbar.title.toStyle,
                     )
                     OutlinedTextField(
                         value = screen.email.text.value,
-                        onValueChange = {
-                            app = app.copy(
-                                screen = (app.screen as LoginScreen).copy(email = (app.screen as LoginScreen).email.copy(text = Normal(it)))
-                            )
-                        }
+                        onValueChange = { screen.email.onChange(it) }
                     )
                     Button(
-                        onClick = {
-                            scope.launch {
-                                app = app.copy(
-                                    screen = createSignupPasswordScreen()
-                                )
-                            }
-                        }
+                        modifier = Modifier.recomposeHighlighter(),
+                        onClick = { screen.next.action() },
+                        enabled = screen.next.state is Enabled
                     ) {
                         Text(
                             text = screen.next.text.value,
@@ -542,23 +545,27 @@ fun App() {
                         )
                     }
                     Text(
-                        modifier = Modifier.clickable {
-                            scope.launch {
-                                app = app.copy(
-                                    screen = createSignupScreen()
-                                )
+                        modifier = Modifier
+                            .clickable {
+//                            screen.signUp.action()
                             }
-                        },
+                            .recomposeHighlighter(),
                         text = screen.signUp.text.value,
                         style = screen.signUp.text.toStyle,
                     )
-                    Button(onClick = {}) {
+                    Button(
+                        modifier = Modifier.recomposeHighlighter(),
+                        onClick = {}
+                    ) {
                         Text(
                             text = screen.google.text.value,
                             style = screen.google.text.toStyle,
                         )
                     }
-                    Button(onClick = { /*TODO*/ }) {
+                    Button(
+                        modifier = Modifier.recomposeHighlighter(),
+                        onClick = { /*TODO*/ }
+                    ) {
                         Text(
                             text = screen.microsoft.text.value,
                             style = screen.microsoft.text.toStyle,
@@ -574,7 +581,7 @@ fun App() {
             is Splash -> {
                 LaunchedEffect(Unit) {
                     delay(screen.duration)
-                    app = app.copy(screen = createProfileScreen())
+                    screen.action()
                 }
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(text = "Splash")
@@ -582,16 +589,7 @@ fun App() {
             }
             is ChatScreen -> {
                 LaunchedEffect(Unit) {
-                    receiveSms().collect {
-                        app = app.copy(
-                            screen = (app.screen as ChatScreen).copy(
-                                content = when (val content = (app.screen as ChatScreen).content) {
-                                    is ChatScreen.Content.Examples -> content
-                                    is ChatScreen.Content.Messages -> content.copy(content.msg.plus(it))
-                                }
-                            )
-                        )
-                    }
+                    screen.receive()
                 }
 
                 Column(
@@ -666,37 +664,11 @@ fun App() {
                                 .fillMaxWidth()
                                 .testTag("messageToSend"),
                             value = screen.toSend.text.value,
-                            onValueChange = {
-//                                screen.toSend.onChange(it)
-                                app = app.copy(screen = screen.copy(toSend = screen.toSend.copy(Normal(it))))
-                            },
+                            onValueChange = { screen.toSend.onChange(it) },
                             trailingIcon = {
                                 IconButton(
                                     modifier = Modifier.testTag("sendMessage"),
-                                    onClick = {
-                                        scope.launch {
-                                            app.user.logged { user ->
-                                                sendMessage(screen.toSend.text.value, user.name)?.let {
-                                                    app = app.copy(
-                                                        screen = screen.copy(
-                                                            toSend = screen.toSend.copy(text = Normal("")),
-                                                            content = ChatScreen.Content.Messages(
-                                                                when (val content = screen.content) {
-                                                                    is ChatScreen.Content.Examples -> {
-                                                                        listOf(Message(user.name, "me - " + screen.toSend.text.value, ""))
-                                                                    }
-                                                                    is ChatScreen.Content.Messages -> {
-                                                                        content.msg.plus(Message(user.name, "me - " + screen.toSend.text.value, ""))
-                                                                    }
-                                                                }
-                                                            )
-                                                        )
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                    },
+                                    onClick = { screen.send.action() },
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Send,
@@ -713,22 +685,17 @@ fun App() {
                     modifier = Modifier.horizontalScroll(rememberScrollState())
                 ) {
                     Text(
+                        modifier = Modifier.recomposeHighlighter(),
                         text = screen.toolbar.title.value,
                         style = screen.toolbar.title.toStyle,
                     )
                     OutlinedTextField(
-                        value = screen.email,
-                        onValueChange = { app = app.copy(screen = screen.copy(email = it)) }
+                        value = screen.email.text.value,
+                        onValueChange = { screen.email.onChange(it) }
                     )
                     Button(
                         onClick = {
-                            scope.launch {
-                                signupEmail(screen.email)?.let {
-                                    app = app.copy(
-                                        screen = createSignupPasswordScreen(),
-                                    )
-                                }
-                            }
+                            screen.next.action()
                         }
                     ) {
                         Text(
@@ -738,11 +705,7 @@ fun App() {
                     }
                     Text(
                         modifier = Modifier.clickable {
-                            scope.launch {
-                                app = app.copy(
-                                    screen = createProfileScreen(),
-                                )
-                            }
+                            screen.login.action()
                         },
                         text = screen.login.text.value,
                         style = screen.login.text.toStyle,
@@ -779,29 +742,14 @@ fun App() {
                             )
                         }
                     )
-                    Button(onClick = {
-                        scope.launch {
-                            signupPassword(screen.password.text.value)?.let {
-                                app = app.copy(
-                                    screen = createChatScreen(),
-                                    user = it,
-                                )
-                            }
-                        }
-                    }) {
+                    Button(onClick = { screen.next.action() }) {
                         Text(
                             text = screen.next.text.value,
                             style = screen.next.text.toStyle,
                         )
                     }
                     Text(
-                        modifier = Modifier.clickable {
-                            scope.launch {
-                                app = app.copy(
-                                    screen = createProfileScreen()
-                                )
-                            }
-                        },
+                        modifier = Modifier.clickable { screen.login.action() },
                         text = screen.login.text.value,
                         style = screen.login.text.toStyle,
                     )
