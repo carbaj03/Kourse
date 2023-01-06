@@ -37,7 +37,7 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun useAppContext(): TestResult = runTest(dispatchTimeoutMs = 10000) {
+    fun useAppContext(): TestResult = runTest {
         var jobs = mutableListOf<Job>()
 
         var appState = MutableStateFlow(AppState())
@@ -71,7 +71,7 @@ class ExampleUnitTest {
                 screen.errors.contains(LoginScreen.Error.InvalidEmail)
                 screen.email.onChange("carbaj03@gmail.com")
                 screen.next.action()
-                advanceUntilIdle()
+//                advanceUntilIdle()
             }
 
             appState.assertScreen<SignupPasswordScreen> {
@@ -86,7 +86,7 @@ class ExampleUnitTest {
             appState.assertScreen<ChatScreen> {
 //                assert(appState.value.screen is ChatScreen)
                 screen.receive()
-                screen.toSend.onChange("a")
+                screen.toSend.onChange("av")
                 when (val content = screen.content) {
                     is ChatScreen.Content.Examples -> assertEquals(
                         content,
@@ -99,7 +99,7 @@ class ExampleUnitTest {
                     is ChatScreen.Content.Examples -> assert(false)
                     is ChatScreen.Content.Messages -> assertEquals(
                         content.msg,
-                        listOf(Message("Both", "a", ""))
+                        listOf(Message("Both", "av", ""))
                     )
                 }
                 advanceUntilIdle()
@@ -107,8 +107,8 @@ class ExampleUnitTest {
                     is ChatScreen.Content.Examples -> assert(false)
                     is ChatScreen.Content.Messages -> assertEquals(
                         listOf(
-                            Message("Both", "a", ""),
-                            Message("Both", "response to a", "")
+                            Message("Both", "av", ""),
+                            Message("Both", "response to av", "")
                         ),
                         content.msg
                     )
@@ -118,6 +118,48 @@ class ExampleUnitTest {
 
         jobs.forEach { it.cancel() }
     }
+
+    @Test
+    fun `receiveSms`() = runTest {
+        var appState = MutableStateFlow(AppState())
+
+        val n = Reducer {
+            appState.value = it(appState.value)
+        }
+        var jobs = mutableListOf<Job>()
+        val s = SideEffect {
+            jobs.add(launch {  it(appState.value, this)})
+        }
+
+        with(n, s) {
+            val screen = createChatScreen()
+            appState.value = appState.value.copy(screen = createChatScreen(), user = LoggedUser(LoggedUser.Id(2), "asd"))
+            screen.receive()
+
+            screen.toSend.onChange("a")
+            screen.send.action()
+            advanceUntilIdle()
+            screen.toSend.onChange("b")
+            screen.send.action()
+            advanceUntilIdle()
+
+            assert(appState.value.screen is ChatScreen)
+            assertEquals(
+                ChatScreen.Content.Messages(
+                    listOf(
+                        Message("Both", "a", ""),
+                        Message("Both", "response to a", ""),
+                        Message("Both", "b", ""),
+                        Message("Both", "response to b", ""),
+                    )
+                ),
+                (appState.value.screen as ChatScreen).content,
+            )
+        }
+
+       jobs.forEach { it.cancel() }
+    }
+
 }
 
 operator fun <T> MutableStateFlow<AppState>.invoke(): T =

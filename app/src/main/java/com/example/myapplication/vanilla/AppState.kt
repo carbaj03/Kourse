@@ -179,11 +179,13 @@ data class Toolbar(
     val itemRight: List<Item> = emptyList(),
 ) {
     sealed interface Item {
-        object Back : Item
-        object Close : Item
+        val action: () -> Unit
 
-        object Menu : Item
-        object ContactUs : Item
+        data class Back(override val action: () -> Unit) : Item
+        data class Close(override val action: () -> Unit) : Item
+
+        data class Menu(override val action: () -> Unit) : Item
+        data class ContactUs(override val action: () -> Unit) : Item
     }
 }
 
@@ -283,8 +285,8 @@ fun createLoginScreen(): LoginScreen {
                     copy(
                         email = email.copy(text = Normal(it)),
                         next = next.copy(
-                            state = if (isValidEmail(email.text.value)) Enabled {
-                                createSignupPasswordScreen()
+                            state = if (isValidEmail(it)) Enabled {
+                                navigate { createSignupPasswordScreen() }
                             } else Disabled
                         )
                     )
@@ -382,7 +384,14 @@ fun createProfileScreen(): ProfileScreen =
 context(Reducer, SideEffect)
 fun createChatScreen(): ChatScreen {
     return ChatScreen(
-        toolbar = Toolbar(title = H1("Chat")),
+        toolbar = Toolbar(title = H1("Chat"), itemLeft = Toolbar.Item.Close {
+            reduce {
+                copy(
+                    screen = createProfileScreen(),
+                    user = Anonymous
+                )
+            }
+        }),
         content = ChatScreen.Content.Examples(
             exmaple1 = Normal(""),
             exmaple2 = Normal(""),
@@ -546,9 +555,7 @@ fun App() {
                     }
                     Text(
                         modifier = Modifier
-                            .clickable {
-//                            screen.signUp.action()
-                            }
+                            .clickable { screen.signUp.action() }
                             .recomposeHighlighter(),
                         text = screen.signUp.text.value,
                         style = screen.signUp.text.toStyle,
@@ -600,10 +607,13 @@ fun App() {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Icon(
                             modifier = Modifier.clickable {
-                                app = app.copy(
-                                    screen = createProfileScreen(),
-                                    user = Anonymous
-                                )
+                                when (val i = screen.toolbar.itemLeft) {
+                                    is Toolbar.Item.Back -> i.action()
+                                    is Toolbar.Item.Close -> i.action()
+                                    is Toolbar.Item.ContactUs -> i.action()
+                                    is Toolbar.Item.Menu -> i.action()
+                                    null -> {}
+                                }
                             },
                             imageVector = Icons.Default.Close,
                             contentDescription = null
@@ -733,13 +743,7 @@ fun App() {
                     OutlinedTextField(
                         value = screen.password.text.value,
                         onValueChange = { text ->
-                            app = app.copy(
-                                screen = screen.copy(
-                                    password = screen.password.copy(
-                                        text = Normal(text)
-                                    )
-                                )
-                            )
+                            screen.password.onChange(text)
                         }
                     )
                     Button(onClick = { screen.next.action() }) {
