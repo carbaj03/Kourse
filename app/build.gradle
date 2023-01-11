@@ -43,7 +43,7 @@ android {
         compose true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.4.0-dev-k1.8.0-RC-4c1865595ed'
+        kotlinCompilerExtensionVersion '1.4.0-dev-k1.8.0-33c0ad36f83'
     }
     namespace 'com.example.myapplication'
 }
@@ -51,6 +51,9 @@ android {
 kotlin {
     sourceSets.main {
         kotlin.srcDir("build/generated/ksp/debug/kotlin")
+    }
+    sourceSets.all {
+        it.languageSettings.enableLanguageFeature("DataObjects")
     }
 }
 
