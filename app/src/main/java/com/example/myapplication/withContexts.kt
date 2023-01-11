@@ -1,11 +1,11 @@
-package com.example.myapplication.asynchrony
+package com.example.myapplication
 
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 sealed interface TypeWrapper<out A> {
-    object IMPL : TypeWrapper<Nothing>
+    data object IMPL : TypeWrapper<Nothing>
 }
 
 

@@ -21,7 +21,7 @@
             tools:targetApi="q" />
 
         <activity
-            android:name=".vanilla.MainActivity"
+            android:name=".ComposeImpl"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

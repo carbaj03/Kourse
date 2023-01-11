@@ -21,10 +21,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import com.example.myapplication.asynchrony.with
 import com.example.myapplication.vanilla.Button.State.Disabled
 import com.example.myapplication.vanilla.Button.State.Enabled
 import com.example.myapplication.vanilla.IsEqual.*
+import com.example.myapplication.with
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -45,7 +45,7 @@ data class LoggedUser(
     value class Id(val value: Int)
 }
 
-object Anonymous : User
+data object Anonymous : User
 
 data class Settings(
     val mode: Mode
@@ -81,7 +81,7 @@ inline fun User.logged(f: (LoggedUser) -> Unit): Unit =
 
 sealed interface Screen
 
-object Initial : Screen
+data object Initial : Screen
 
 data class Splash(
     val duration: Duration,
@@ -113,7 +113,7 @@ data class SignupPasswordScreen(
     val errors: List<Error>,
 ) : Screen {
     sealed interface Error {
-        object InvalidPassword : Error
+        data object InvalidPassword : Error
     }
 }
 
@@ -127,7 +127,7 @@ data class LoginScreen(
     val errors: List<Error>
 ) : Screen {
     sealed interface Error {
-        object InvalidEmail : Error
+        data object InvalidEmail : Error
     }
 }
 
