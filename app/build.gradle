@@ -72,11 +72,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 
-
-
-//    implementation("io.github.carbaj03:redux:0.1.0")
-//    implementation("io.github.carbaj03:arrow:0.1.0")
-
     implementation("io.arrow-kt:arrow-fx-coroutines:$arrowVersion")
     implementation("io.arrow-kt:arrow-optics:$arrowVersion")
     ksp("io.arrow-kt:arrow-optics-ksp-plugin:$arrowVersion")
@@ -100,6 +95,6 @@ dependencies {
 
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.4.0-alpha03")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.4.0-alpha03")
-    androidTestImplementation 'androidx.test.ext:junit:1.1.4'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }

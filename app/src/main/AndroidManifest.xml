@@ -21,7 +21,7 @@
             tools:targetApi="q" />
 
         <activity
-            android:name=".ComposeImpl"
+            android:name=".navigation.ComposeImpl"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
