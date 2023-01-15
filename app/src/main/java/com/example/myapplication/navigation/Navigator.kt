@@ -10,7 +10,6 @@ fun interface Navigator {
         val addToStack: Boolean,
         val clearAll: Boolean,
         val unique: Boolean,
-        val key: String,
     )
 }
 
@@ -19,14 +18,13 @@ fun Screen.navigate(
     addToStack: Boolean = true,
     clearAll: Boolean = false,
     unique: Boolean = true,
-    key: String = javaClass.name,
 ): Unit =
-    navigate(Navigator.Options(addToStack, clearAll, unique, key))
+    navigate(Navigator.Options(addToStack, clearAll, unique))
 
 context(Reducer, Navigator)
-inline fun <reified S : Screen> navigate(key: String, f: S.() -> S): Unit =
+inline fun <reified S : Screen> navigate(f: S.() -> S): Unit =
     when (val screen = state.screen) {
-        is S -> f(screen).navigate(key = key)
+        is S -> f(screen).navigate()
         else -> Unit
     }
 
@@ -57,20 +55,18 @@ fun back() {
 
     if (state.stack.screens.isEmpty()) return state.finish()
     state.stack.screens
-        .minus(state.stack.screens.keys.last())
+        .minus(state.stack.screens.last())
         .let { newStack ->
-            newStack[newStack.keys.lastOrNull()]
-                ?.let { screen ->
-                    reducer {
-                        copy(
-                            stack = BackStack(newStack),
-                            screen = with(mergeable, mergeable2) {
-                                updateStakeWith<Screen1Detail>() ?: updateStakeWith<Dashboard>() ?: screen
-                            }
-                        )
-                    }
+            newStack.lastOrNull()?.let { screen ->
+                reducer {
+                    copy(
+                        stack = BackStack(newStack),
+                        screen = with(mergeable, mergeable2) {
+                            updateStakeWith<Screen1Detail>() ?: updateStakeWith<Dashboard>() ?: screen
+                        }
+                    )
                 }
-                ?: state.finish()
+            } ?: state.finish()
         }
     state.stack.screens.forEach {
         Log.e("stack", it.toString())

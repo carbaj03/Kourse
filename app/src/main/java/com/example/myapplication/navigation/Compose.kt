@@ -1,7 +1,6 @@
 package com.example.myapplication.navigation
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
@@ -19,29 +18,33 @@ class ComposeImpl : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val state = MutableStateFlow(App(screen = Start, finish = { finish() }))
-        val navigator = Navigator { option ->
-                val stack = if (option.clearAll) {
-                    emptyMap()
-                } else{
-                    when (val key = state.value.stack.screens.keys.lastOrNull()) {
-                        null -> emptyMap()
-                        else -> state.value.stack.screens.minus(key).plus(key to state.value.screen)
-                    }
-                }.let {
-                    when {
-                        option.unique -> it.minus(option.key).plus(option.key to this)
-                        else -> it.plus(option.key to this)
-                    }
-                }
 
-            state.value = state.value.copy(
-                screen = this,
-                stack = BackStack(stack).also {
-                    stack.forEach{
-                        Log.e("Stack", it.toString())
+        val navigator = Navigator { option ->
+            when (option.addToStack) {
+                true -> when (option.clearAll) {
+                    true -> listOf(this)
+                    false -> when (option.unique) {
+                        true -> state.value.stack.screens
+                            .filterNot { it.route == state.value.screen.route }
+                            .plus(state.value.screen)
+                            .filterNot { it.route == route }
+                            .plus(this)
+                        false -> state.value.stack.screens
+                            .filterNot { it.route == state.value.screen.route }
+                            .plus(state.value.screen)
+                            .plus(this)
                     }
                 }
-            )
+                false -> when (option.clearAll) {
+                    true -> emptyList()
+                    false -> state.value.stack.screens
+                }
+            }.let {
+                state.value = state.value.copy(
+                    screen = this,
+                    stack = BackStack(it)
+                )
+            }
         }
 
         val provider = object : Reducer {
@@ -62,7 +65,7 @@ class ComposeImpl : AppCompatActivity() {
 
                 when (val s = screen.screen) {
                     is Dashboard -> {
-                        Column() {
+                        Column {
                             Text(text = s.currentTab.toString())
                             when (val tab = s.currentTab) {
                                 is Tab.Tab1 -> {

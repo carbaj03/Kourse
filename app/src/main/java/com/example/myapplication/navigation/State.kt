@@ -14,7 +14,7 @@ interface State
 
 data class App(
     val screen: Screen,
-    val stack: BackStack = BackStack(emptyMap()),
+    val stack: BackStack = BackStack(emptyList()),
     val finish: () -> Unit = {},
     val counter: Int = 0,
 ) : State
@@ -22,13 +22,13 @@ data class App(
 
 @JvmInline
 value class BackStack(
-    val screens: Map<String, Screen>,
+    val screens: List<Screen>,
 )
 
 context(Reducer)
 fun updateStake(): List<Screen> {
-    if (state.stack.screens.keys.isEmpty()) return emptyList()
-    val a = state.stack.screens[state.stack.screens.keys.elementAt(state.stack.screens.keys.size - 2)]
+    if (state.stack.screens.isEmpty()) return emptyList()
+    val a = state.stack.screens.getOrNull(state.stack.screens.size - 2)
     val b = state.screen
     return a?.let { listOf(a, b) } ?: emptyList()
 }
@@ -49,30 +49,38 @@ inline fun <reified A : Screen> updateStakeWith(): A? =
 //        ?: copy(screen = default)
 
 
-sealed interface Screen
+sealed interface Screen{
+    val route : String
+}
 
-data object Start : Screen
+data object Start : Screen {
+    override val route: String = "Start"
+}
 
 data class Splash(
     val next: () -> Unit,
+    override val route: String = "Splash",
 ) : Screen
 
 data class Home(
     val login: () -> Unit,
     val signUp: () -> Unit,
+    override val route: String = "Home",
 ) : Screen
 
 data class Login(
     val back: () -> Unit,
     val next: () -> Unit,
     val name: String,
-    val onChange: (String) -> Unit
+    val onChange: (String) -> Unit,
+    override val route: String = "Login",
 ) : Screen
 
 data class SignUp(
     val back: () -> Unit,
     val next: () -> Unit,
-    val name: String
+    val name: String,
+    override val route: String = "SignUp",
 ) : Screen
 
 sealed interface Password : Screen {
@@ -84,12 +92,14 @@ sealed interface Password : Screen {
         override val back: () -> Unit,
         override val next: () -> Unit,
         override val password: String,
+        override val route: String = "PasswordLogin",
     ) : Password
 
     data class Signup(
         override val back: () -> Unit,
         override val next: () -> Unit,
         override val password: String,
+        override val route: String = "PasswordSignup",
     ) : Password
 }
 
@@ -127,7 +137,7 @@ context(Reducer, Navigator)
 fun Tab3Screen1(): Tab3Screen1 =
     Tab3Screen1(
         next = {
-            navigate<Dashboard>("Tab3Screen1") {
+            navigate<Dashboard> {
                 copy(currentTab = currentTab<Tab3> { copy(screen = Tab3Screen2()) })
             }
         }
@@ -200,7 +210,16 @@ data class Dashboard(
     val tab3: Tab3,
     val currentTab: Tab,
     val onTabSelected: (Tab) -> Unit,
-) : Screen
+) : Screen{
+    override val route: String get() =  when(currentTab){
+        is Tab1 -> "DashboardTab1"
+        is Tab2 -> "DashboardTab2"
+        is Tab3 -> when(currentTab.screen){
+            is Tab3Screen1 -> "Tab3Screen1"
+            is Tab3Screen2 -> "Tab3Screen2"
+        }
+    }
+}
 
 
 fun interface Mergeable<A : Screen> {
@@ -215,7 +234,7 @@ fun Dashboard(): Dashboard {
     return Dashboard(
         currentTab = tab1,
         onTabSelected = {
-            navigate<Dashboard>(it.key) {
+            navigate<Dashboard> {
                 when (currentTab) {
                     is Tab1 -> if (it is Tab1) this else copy(tab1 = currentTab, currentTab = it)
                     is Tab2 -> if (it is Tab2) this else copy(tab2 = currentTab, currentTab = it)
@@ -229,17 +248,10 @@ fun Dashboard(): Dashboard {
     )
 }
 
-val Tab.key get() = when(this){
-    is Tab1 -> "Tab1"
-    is Tab2 -> "Tab2"
-    is Tab3 -> "Tab3"
-}
-
-
 context(Navigator, Reducer)
 fun Splash(): Splash =
     Splash(
-        next = { Home().navigate() },
+        next = { Home().navigate(false) },
     )
 
 context(Navigator, Reducer)
@@ -287,6 +299,7 @@ fun SignupPassword(): Password =
 data class Screen1Detail(
     val close: () -> Unit,
     val setCounter: (Int) -> Unit,
+    override val route: String = "Screen1Detail"
 ) : Screen
 
 context(Reducer, Navigator)
