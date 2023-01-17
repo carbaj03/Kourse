@@ -1,11 +1,9 @@
 package com.example.myapplication.navigation
 
-import android.util.Log
 import com.example.myapplication.navigation.Tab.*
 import com.example.myapplication.with
 import io.ktor.util.reflect.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 
@@ -26,31 +24,29 @@ value class BackStack(
 )
 
 context(Reducer)
-fun updateStake(): List<Screen> {
-    if (state.stack.screens.isEmpty()) return emptyList()
-    val a = state.stack.screens.getOrNull(state.stack.screens.size - 2)
-    val b = state.screen
-    return a?.let { listOf(a, b) } ?: emptyList()
+fun screenToMerge(): List<Screen> {
+    if (state.value.stack.screens.isEmpty()) return emptyList()
+    return state.value.stack.screens
+        .getOrNull(state.value.stack.screens.size - 2)
+        ?.let { listOf(it, state.value.screen) }
+        ?: emptyList()
+
 }
 
 context(Reducer, Mergeable<A>)
-inline fun <reified A : Screen> updateStack(): List<A>? =
-    updateStake().filterIsInstance<A>().let { if (it.size <= 1) return null else it }
+inline fun <reified A : Screen> filterMergeable(): List<A>? =
+    screenToMerge()
+        .filterIsInstance<A>()
+        .let { if (it.size <= 1) return null else it }
 
 
 context(Reducer, Mergeable<A>)
-inline fun <reified A : Screen> updateStakeWith(): A? =
-    updateStack()?.reduce { a, b -> a + b }
+inline fun <reified A : Screen> reduceStack(): A? =
+    filterMergeable()?.reduce { a, b -> a + b }
 
 
-//inline fun <reified S : Screen> App.navigateFromStack(default: S): App =
-//    (stack.screens.firstOrNull { it is S } as S?)
-//        ?.let { copy(screen = it, stack = BackStack(stack.screens.filter { it !is S })) }
-//        ?: copy(screen = default)
-
-
-sealed interface Screen{
-    val route : String
+sealed interface Screen {
+    val route: String
 }
 
 data object Start : Screen {
@@ -104,22 +100,47 @@ sealed interface Password : Screen {
 }
 
 sealed interface Tab {
-    data class Tab1(
+    data class One(
         val counter: Int,
         val setCounter: (Int) -> Unit,
         val back: () -> Unit,
     ) : Tab
 
-    data class Tab2(
+    data class Two(
         val counter: Int,
         val setCounter: (Int) -> Unit,
         val detail: () -> Unit,
         val back: () -> Unit,
     ) : Tab
 
-    data class Tab3(
+    data class Three(
         val screen: Tab3Content,
     ) : Tab
+
+    data class Four(
+        val subTab: SubTab,
+        val tab1: SubTab.One,
+        val tab2: SubTab.Two,
+        val tab3: SubTab.Three,
+        val onSelected: (SubTab) -> Unit
+    ) : Tab
+}
+
+sealed interface SubTab {
+    data class One(
+        val counter: Int,
+        val setCounter: (Int) -> Unit,
+    ) : SubTab
+
+    data class Two(
+        val counter: Int,
+        val setCounter: (Int) -> Unit,
+    ) : SubTab
+
+    data class Three(
+        val counter: Int,
+        val setCounter: (Int) -> Unit,
+    ) : SubTab
 }
 
 sealed interface Tab3Content
@@ -138,7 +159,7 @@ fun Tab3Screen1(): Tab3Screen1 =
     Tab3Screen1(
         next = {
             navigate<Dashboard> {
-                copy(currentTab = currentTab<Tab3> { copy(screen = Tab3Screen2()) })
+                copy(currentTab = currentTab<Three> { copy(screen = Tab3Screen2()) })
             }
         }
     )
@@ -151,49 +172,95 @@ fun Tab3Screen2(): Tab3Screen2 =
     )
 
 context(Reducer, Navigator)
-fun Tab1(): Tab1 =
-    Tab1(
+fun Tab1(): One =
+    One(
         counter = 0,
         setCounter = { newCounter ->
             reducer<Dashboard> {
-                copy(
-                    currentTab = currentTab<Tab1> {
-                        copy(counter = newCounter)
-                    }
-                )
+                copy(currentTab = currentTab<One> { copy(counter = newCounter) })
             }
         },
         back = { back() }
     )
 
 context(Reducer, Navigator)
-fun Tab2(): Tab2 =
-    Tab2(
+fun Tab2(): Two =
+    Two(
         counter = 0,
-        setCounter = { reducer { copy(counter = it) } },
+        setCounter = {
+            reducer<Dashboard> {
+                copy(currentTab = currentTab<Two> { copy(counter = it) })
+            }
+        },
         detail = { Screen1Detail().navigate() },
         back = {}
     )
 
 context(Reducer, Navigator)
-fun Tab3(): Tab3 =
-    Tab3(
+fun Tab3(): Three =
+    Three(
         screen = Tab3Screen1(),
     )
+
+context(Reducer, Navigator)
+fun Tab4(): Four {
+    val one = SubTab.One(
+        counter = 0,
+        setCounter = {
+            reducer<Dashboard> {
+                copy(currentTab = currentTab<Tab.Four> { copy(subTab = subTab<SubTab.One> { copy(counter = it) }) })
+            }
+        }
+    )
+    val two = SubTab.Two(
+        counter = 0,
+        setCounter = {
+            reducer<Dashboard> {
+                copy(currentTab = currentTab<Tab.Four> { copy(subTab = subTab<SubTab.Two> { copy(counter = it) }) })
+            }
+        }
+    )
+    val three = SubTab.Three(
+        counter = 0,
+        setCounter = {
+            reducer<Dashboard> {
+                copy(currentTab = currentTab<Tab.Four> { copy(subTab = subTab<SubTab.Three> { copy(counter = it) }) })
+            }
+        }
+    )
+    return Four(
+        onSelected = {
+            reducer<Dashboard> {
+                copy(currentTab = currentTab<Four> {
+                    when (subTab) {
+                        is SubTab.One -> if (it is SubTab.One) this else copy(tab1 = subTab, subTab = it)
+                        is SubTab.Two -> if (it is SubTab.Two) this else copy(tab2 = subTab, subTab = it)
+                        is SubTab.Three -> if (it is SubTab.Three) this else copy(tab3 = subTab, subTab = it)
+                    }
+                })
+            }
+        },
+        subTab = one,
+        tab1 = one,
+        tab2 = two,
+        tab3 = three,
+    )
+}
 
 
 interface TabContext<A : Tab> {
     val tab: A
 }
 
-inline fun <reified S : Tab> Tab.assert(
-    crossinline f: TabContext<S>.() -> Unit
+context(ScreenContext<Dashboard>)
+inline fun <reified S : Tab> assert(
+    crossinline f: TabContext<S>.() -> Unit = {}
 ) {
     object : TabContext<S> {
         override val tab: S
             get() {
-                assert(this@assert.instanceOf(S::class)) { "${this@assert::class} is not ${S::class}" }
-                return this@assert as S
+                assert(screen.currentTab.instanceOf(S::class)) { "${screen.currentTab::class} is not ${S::class}" }
+                return screen.currentTab as S
             }
     }.let { f(it) }
 }
@@ -204,23 +271,35 @@ inline operator fun <reified A : Tab> Tab.invoke(f: A.() -> A): Tab =
         else -> this
     }
 
+inline operator fun <reified A : SubTab> SubTab.invoke(f: A.() -> A): SubTab =
+    when (this) {
+        is A -> f(this)
+        else -> this
+    }
+
 data class Dashboard(
-    val tab1: Tab1,
-    val tab2: Tab2,
-    val tab3: Tab3,
+    val tab1: One,
+    val tab2: Two,
+    val tab3: Three,
+    val tab4: Four,
     val currentTab: Tab,
     val onTabSelected: (Tab) -> Unit,
-) : Screen{
-    override val route: String get() =  when(currentTab){
-        is Tab1 -> "DashboardTab1"
-        is Tab2 -> "DashboardTab2"
-        is Tab3 -> when(currentTab.screen){
-            is Tab3Screen1 -> "Tab3Screen1"
-            is Tab3Screen2 -> "Tab3Screen2"
+) : Screen {
+    override val route: String
+        get() = when (currentTab) {
+            is One -> "DashboardTab1"
+            is Two -> "DashboardTab2"
+            is Three -> when (currentTab.screen) {
+                is Tab3Screen1 -> "Tab3Screen1"
+                is Tab3Screen2 -> "Tab3Screen2"
+            }
+            is Four -> when (currentTab.subTab) {
+                is SubTab.One -> "SubTab.One"
+                is SubTab.Two -> "SubTab.Two"
+                is SubTab.Three -> "SubTab.Three"
+            }
         }
-    }
 }
-
 
 fun interface Mergeable<A : Screen> {
     infix operator fun A.plus(other: A): A
@@ -231,20 +310,23 @@ fun Dashboard(): Dashboard {
     val tab1 = Tab1()
     val tab2 = Tab2()
     val tab3 = Tab3()
+    val tab4 = Tab4()
     return Dashboard(
         currentTab = tab1,
         onTabSelected = {
             navigate<Dashboard> {
                 when (currentTab) {
-                    is Tab1 -> if (it is Tab1) this else copy(tab1 = currentTab, currentTab = it)
-                    is Tab2 -> if (it is Tab2) this else copy(tab2 = currentTab, currentTab = it)
-                    is Tab3 -> if (it is Tab3) this else copy(tab3 = currentTab, currentTab = it)
+                    is One -> if (it is One) this else copy(tab1 = currentTab, currentTab = it)
+                    is Two -> if (it is Two) this else copy(tab2 = currentTab, currentTab = it)
+                    is Three -> if (it is Three) this else copy(tab3 = currentTab, currentTab = it)
+                    is Four -> if (it is Four) this else copy(tab4 = currentTab, currentTab = it)
                 }
             }
         },
         tab1 = tab1,
         tab2 = tab2,
         tab3 = tab3,
+        tab4 = tab4,
     )
 }
 
@@ -310,21 +392,9 @@ fun Screen1Detail(): Screen1Detail =
     )
 
 fun main() {
-    val state = MutableStateFlow(App(screen = Start))
-    val navigator = Navigator {
-        state.value = state.value.copy(screen = this)
-    }
-    val provider = object : Reducer {
-        override fun App.reduce() {
-            state.value = this
-        }
+    val store = Store({})
 
-        override val state: App
-            get() = state.value
-
-    }
-
-    with(navigator, provider) {
+    with(store) {
         state.value.screen.let {
             if (it is Start) Splash().navigate()
         }

@@ -1,6 +1,5 @@
 package com.example.myapplication.navigation
 
-import android.util.Log
 import com.example.myapplication.with
 
 fun interface Navigator {
@@ -23,52 +22,55 @@ fun Screen.navigate(
 
 context(Reducer, Navigator)
 inline fun <reified S : Screen> navigate(f: S.() -> S): Unit =
-    when (val screen = state.screen) {
+    when (val screen = state.value.screen) {
         is S -> f(screen).navigate()
         else -> Unit
     }
 
 context(Reducer)
 fun back() {
-    val mergeable = Mergeable<Dashboard> { other ->
+    val dashboardMergeable = Mergeable<Dashboard> { other ->
         when (other.currentTab) {
-            is Tab.Tab1 -> if (currentTab is Tab.Tab1) this else copy(
+            is Tab.One -> if (currentTab is Tab.One) this else copy(
                 tab1 = other.currentTab,
                 tab2 = other.tab2,
                 tab3 = other.tab3,
+                tab4 = other.tab4,
             )
-            is Tab.Tab2 -> if (currentTab is Tab.Tab2) this else copy(
+            is Tab.Two -> if (currentTab is Tab.Two) this else copy(
                 tab1 = other.tab1,
                 tab2 = other.currentTab,
                 tab3 = other.tab3,
+                tab4 = other.tab4,
             )
-            is Tab.Tab3 -> if (currentTab is Tab.Tab3) this else copy(
+            is Tab.Three -> if (currentTab is Tab.Three) this else copy(
                 tab1 = other.tab1,
                 tab2 = other.tab2,
                 tab3 = other.currentTab,
+                tab4 = other.tab4,
+            )
+            is Tab.Four -> if (currentTab is Tab.Four) this else copy(
+                tab1 = other.tab1,
+                tab2 = other.tab2,
+                tab3 = other.tab3,
+                tab4 = other.currentTab,
             )
         }
     }
-    val mergeable2 = Mergeable<Screen1Detail> { other ->
-        copy()
-    }
 
-    if (state.stack.screens.isEmpty()) return state.finish()
-    state.stack.screens
-        .minus(state.stack.screens.last())
+    if (state.value.stack.screens.isEmpty()) return state.value.finish()
+    state.value.stack.screens
+        .minus(state.value.stack.screens.last())
         .let { newStack ->
             newStack.lastOrNull()?.let { screen ->
                 reducer {
                     copy(
                         stack = BackStack(newStack),
-                        screen = with(mergeable, mergeable2) {
-                            updateStakeWith<Screen1Detail>() ?: updateStakeWith<Dashboard>() ?: screen
+                        screen = with(dashboardMergeable) {
+                            reduceStack<Dashboard>() ?: screen
                         }
                     )
                 }
-            } ?: state.finish()
+            } ?: state.value.finish()
         }
-    state.stack.screens.forEach {
-        Log.e("stack", it.toString())
-    }
 }

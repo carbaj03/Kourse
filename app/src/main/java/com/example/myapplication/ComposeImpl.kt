@@ -19,12 +19,9 @@ class ComposeImpl : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
         setContent {
             val network = object : Network {}
-
             val db = object : DB {}
-
             val repository: RandomRepository by lazy {
                 with(network, db) { randomRepository() }
             }
