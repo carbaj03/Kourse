@@ -1,9 +1,5 @@
 package com.example.myapplication
 
-import com.example.myapplication.navigation.*
-import com.example.myapplication.navigation.Splash
-import com.example.myapplication.navigation.Start
-import com.example.myapplication.navigation.Store
 import io.ktor.util.reflect.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest

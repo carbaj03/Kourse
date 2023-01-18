@@ -1,4 +1,4 @@
-package com.example.myapplication.navigation
+package com.example.myapplication
 
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
@@ -10,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.example.myapplication.with
 import kotlinx.coroutines.delay
 
 

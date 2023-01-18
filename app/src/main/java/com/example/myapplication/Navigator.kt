@@ -1,6 +1,4 @@
-package com.example.myapplication.navigation
-
-import com.example.myapplication.with
+package com.example.myapplication
 
 fun interface Navigator {
     fun Screen.navigate(options: Options)
@@ -58,7 +56,9 @@ fun back() {
         }
     }
 
-    if (state.value.stack.screens.isEmpty()) return state.value.finish()
+    if (state.value.stack.screens.isEmpty())
+        return state.value.finish()
+
     state.value.stack.screens
         .minus(state.value.stack.screens.last())
         .let { newStack ->

@@ -1,7 +1,6 @@
-package com.example.myapplication.navigation
+package com.example.myapplication
 
-import com.example.myapplication.navigation.Tab.*
-import com.example.myapplication.with
+import com.example.myapplication.Tab.*
 import io.ktor.util.reflect.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -208,7 +207,7 @@ fun Tab4(): Four {
         counter = 0,
         setCounter = {
             reducer<Dashboard> {
-                copy(currentTab = currentTab<Tab.Four> { copy(subTab = subTab<SubTab.One> { copy(counter = it) }) })
+                copy(currentTab = currentTab<Four> { copy(subTab = subTab<SubTab.One> { copy(counter = it) }) })
             }
         }
     )
@@ -216,7 +215,7 @@ fun Tab4(): Four {
         counter = 0,
         setCounter = {
             reducer<Dashboard> {
-                copy(currentTab = currentTab<Tab.Four> { copy(subTab = subTab<SubTab.Two> { copy(counter = it) }) })
+                copy(currentTab = currentTab<Four> { copy(subTab = subTab<SubTab.Two> { copy(counter = it) }) })
             }
         }
     )
@@ -224,7 +223,7 @@ fun Tab4(): Four {
         counter = 0,
         setCounter = {
             reducer<Dashboard> {
-                copy(currentTab = currentTab<Tab.Four> { copy(subTab = subTab<SubTab.Three> { copy(counter = it) }) })
+                copy(currentTab = currentTab<Four> { copy(subTab = subTab<SubTab.Three> { copy(counter = it) }) })
             }
         }
     )
@@ -398,11 +397,9 @@ fun main() {
         state.value.screen.let {
             if (it is Start) Splash().navigate()
         }
-
         state<Splash> {
             next()
         }
-
         state<Home> {
             login()
         }
