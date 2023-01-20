@@ -4,14 +4,24 @@ import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.example.myapplication.TypeWrapper
 import com.example.myapplication.with
-import kotlinx.coroutines.delay
+
+
+@Composable
+@Suppress("SUBTYPING_BETWEEN_CONTEXT_RECEIVERS")
+inline fun <A, B, C, R> remember(a: A, b: B, c: C, crossinline block: context(A, B, C) (TypeWrapper<C>) -> R): R =
+    remember { with(a, b, c, block) }
 
 
 class ComposeImpl : AppCompatActivity() {
@@ -19,11 +29,17 @@ class ComposeImpl : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val store: Store = Store(finish = { finish() })
+        val repo = SearchRepository()
 
-        with(store) {
-            setContent {
-
+        setContent {
+            val scope = rememberCoroutineScope()
+            val store: Store = remember(repo, scope, SplashCalculator) {
+                Store(
+                    start = { Start() },
+                    finish = { finish() }
+                )
+            }
+            with(store) {
                 val state by state.collectAsState()
 
                 BackHandler(enabled = true) { back() }
@@ -44,17 +60,23 @@ class ComposeImpl : AppCompatActivity() {
                                     }
                                 }
                                 is Tab.Two -> {
-                                    var field by remember { mutableStateOf("") }
-                                    Text(text = tab.counter.toString())
                                     TextField(
-                                        value = field,
-                                        onValueChange = { field = it }
+                                        value = tab.toSearch,
+                                        onValueChange = { tab.changeSearch(it) }
                                     )
-                                    Button(onClick = { tab.setCounter(field.toInt()); field = "" }) {
-                                        Text(text = "Set Counter")
+                                    Button(onClick = { tab.search() }) {
+                                        Text(text = "Search")
                                     }
-                                    Button(onClick = { tab.detail() }) {
-                                        Text(text = "Detail")
+                                    LazyColumn {
+                                        items(tab.results) {
+                                            Row(
+                                                Modifier
+                                                    .clickable { tab.selectResult() }
+                                                    .padding(10.dp)
+                                            ) {
+                                                Text(text = it)
+                                            }
+                                        }
                                     }
                                 }
                                 is Tab.Three -> {
@@ -67,7 +89,7 @@ class ComposeImpl : AppCompatActivity() {
                                         }
                                         is Tab3Screen2 -> {
                                             Text(text = "Tab 3 Screen 2")
-                                            Button(onClick = content.back) {
+                                            Button(onClick = { content.back() }) {
                                                 Text(text = "Back")
                                             }
                                         }
@@ -179,10 +201,10 @@ class ComposeImpl : AppCompatActivity() {
                         Column() {
                             Text(text = "Login")
                             Text(text = screen.name)
-                            Button(onClick = screen.next) {
+                            Button(onClick = { screen.next() }) {
                                 Text(text = "Next")
                             }
-                            Button(onClick = screen.back) {
+                            Button(onClick = { screen.back() }) {
                                 Text(text = "Back")
                             }
                         }
@@ -194,7 +216,7 @@ class ComposeImpl : AppCompatActivity() {
                             Button(onClick = screen.next) {
                                 Text(text = "Next")
                             }
-                            Button(onClick = screen.back) {
+                            Button(onClick = { screen.back() }) {
                                 Text(text = "Back")
                             }
                         }
@@ -207,7 +229,7 @@ class ComposeImpl : AppCompatActivity() {
                             Button(onClick = { screen.setCounter(state.counter + 2) }) {
                                 Text(text = "Set counter")
                             }
-                            Button(onClick = screen.close) {
+                            Button(onClick = { screen.close() }) {
                                 Text(text = "Close")
                             }
                         }
@@ -218,12 +240,11 @@ class ComposeImpl : AppCompatActivity() {
                     is Splash -> {
                         Text(text = "Splash")
                         LaunchedEffect(Unit) {
-                            delay(3000)
                             screen.next()
                         }
                     }
                     is Start -> {
-                        Splash().navigate(false)
+
                     }
                 }
             }

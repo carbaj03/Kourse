@@ -1,8 +1,12 @@
 package com.example.myapplication.navigation
 
+import androidx.compose.runtime.Composable
+import arrow.core.continuations.Raise
+import arrow.core.continuations.effect
 import com.example.myapplication.navigation.Tab.*
 import com.example.myapplication.with
 import io.ktor.util.reflect.*
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -13,7 +17,7 @@ interface State
 data class App(
     val screen: Screen,
     val stack: BackStack = BackStack(emptyList()),
-    val finish: () -> Unit = {},
+    val finish: () -> Unit,
     val counter: Int = 0,
 ) : State
 
@@ -107,9 +111,13 @@ sealed interface Tab {
     ) : Tab
 
     data class Two(
-        val counter: Int,
-        val setCounter: (Int) -> Unit,
-        val detail: () -> Unit,
+        val toSearch: String,
+        val search: () -> Unit,
+        val changeSearch: (String) -> Unit,
+        val suggestions: List<String>,
+        val selectSuggestion: (String) -> Unit,
+        val results: List<String>,
+        val selectResult: () -> Unit,
         val back: () -> Unit,
     ) : Tab
 
@@ -183,16 +191,44 @@ fun Tab1(): One =
         back = { back() }
     )
 
-context(Reducer, Navigator)
+
+class SearchRepository {
+    suspend fun getSuggestions(hint: String): List<String> = listOf("carbajo").filter { it.contains(hint) }
+    suspend fun getResults(search: String): List<String> = listOf("Carbajo Achievements", "Carbajo the great developer").filter { it.contains(search, true) }
+}
+
+context(Reducer, Navigator, SearchRepository, CoroutineScope)
 fun Tab2(): Two =
     Two(
-        counter = 0,
-        setCounter = {
-            reducer<Dashboard> {
-                copy(currentTab = currentTab<Two> { copy(counter = it) })
+        toSearch = "",
+        changeSearch = { search ->
+            launch {
+                reducer<Dashboard> {
+                    copy(currentTab = currentTab<Two> { copy(toSearch = search, suggestions = getSuggestions(search)) })
+                }
             }
         },
-        detail = { Screen1Detail().navigate() },
+        search = {
+            launch {
+                reducer<Dashboard> {
+                    copy(currentTab = currentTab<Two> { copy(results = getResults(toSearch)) })
+                }
+            }
+        },
+        results = listOf(),
+        selectResult = {
+            launch {
+                state<Dashboard> {
+                    currentTab<Two, String> { tab2.toSearch }?.let { getResults(it) }
+                }
+            }
+        },
+        suggestions = listOf(),
+        selectSuggestion = {
+            reducer<Dashboard> {
+                copy(currentTab = currentTab<Two> { copy(toSearch = it) })
+            }
+        },
         back = {}
     )
 
@@ -208,7 +244,7 @@ fun Tab4(): Four {
         counter = 0,
         setCounter = {
             reducer<Dashboard> {
-                copy(currentTab = currentTab<Tab.Four> { copy(subTab = subTab<SubTab.One> { copy(counter = it) }) })
+                copy(currentTab = currentTab<Four> { copy(subTab = subTab<SubTab.One> { copy(counter = it) }) })
             }
         }
     )
@@ -216,7 +252,7 @@ fun Tab4(): Four {
         counter = 0,
         setCounter = {
             reducer<Dashboard> {
-                copy(currentTab = currentTab<Tab.Four> { copy(subTab = subTab<SubTab.Two> { copy(counter = it) }) })
+                copy(currentTab = currentTab<Four> { copy(subTab = subTab<SubTab.Two> { copy(counter = it) }) })
             }
         }
     )
@@ -224,7 +260,7 @@ fun Tab4(): Four {
         counter = 0,
         setCounter = {
             reducer<Dashboard> {
-                copy(currentTab = currentTab<Tab.Four> { copy(subTab = subTab<SubTab.Three> { copy(counter = it) }) })
+                copy(currentTab = currentTab<Four> { copy(subTab = subTab<SubTab.Three> { copy(counter = it) }) })
             }
         }
     )
@@ -271,6 +307,12 @@ inline operator fun <reified A : Tab> Tab.invoke(f: A.() -> A): Tab =
         else -> this
     }
 
+inline operator fun <reified A : Tab, B> Tab.invoke(f: A.() -> B): B? =
+    when (this) {
+        is A -> f(this)
+        else -> null
+    }
+
 inline operator fun <reified A : SubTab> SubTab.invoke(f: A.() -> A): SubTab =
     when (this) {
         is A -> f(this)
@@ -305,7 +347,13 @@ fun interface Mergeable<A : Screen> {
     infix operator fun A.plus(other: A): A
 }
 
-context(Navigator, Reducer)
+
+context(Navigator, Reducer, SearchRepository, SideEffect)
+fun Start() {
+    Splash().navigate(addToStack = false)
+}
+
+context(Navigator, Reducer, SearchRepository, CoroutineScope)
 fun Dashboard(): Dashboard {
     val tab1 = Tab1()
     val tab2 = Tab2()
@@ -330,31 +378,36 @@ fun Dashboard(): Dashboard {
     )
 }
 
-context(Navigator, Reducer)
+
+
+context(Navigator, Reducer, SearchRepository, SideEffect)
 fun Splash(): Splash =
     Splash(
-        next = { Home().navigate(false) },
+        next = {
+            launch {
+                delay(1000)
+                Home().navigate(addToStack = false)
+            }
+        },
     )
 
-context(Navigator, Reducer)
+context(Navigator, Reducer, SearchRepository, SideEffect)
 fun Home(): Home =
     Home(
         login = { Login().navigate() },
         signUp = { SignUp().navigate() }
     )
 
-context(Navigator, Reducer)
+context(Navigator, Reducer, SearchRepository, SideEffect)
 fun Login(): Login =
     Login(
         next = { LoginPassword().navigate() },
-        back = { back() },
+        back = { launch { back() } },
         name = "name",
-        onChange = {
-            reducer<Login> { copy(name = it) }
-        }
+        onChange = { reducer<Login> { copy(name = it) } }
     )
 
-context(Navigator, Reducer)
+context(Navigator, Reducer, SearchRepository, SideEffect)
 fun SignUp(): SignUp =
     SignUp(
         next = { SignupPassword() },
@@ -362,15 +415,15 @@ fun SignUp(): SignUp =
         name = "name"
     )
 
-context(Navigator, Reducer)
+context(Navigator, Reducer, SearchRepository, SideEffect)
 fun LoginPassword(): Password =
     Password.Login(
         password = "",
         next = { Dashboard().navigate(clearAll = true) },
-        back = { back() },
+        back = { launch { back() } },
     )
 
-context(Navigator, Reducer)
+context(Navigator, Reducer, SearchRepository, SideEffect)
 fun SignupPassword(): Password =
     Password.Signup(
         password = "",
@@ -388,29 +441,32 @@ context(Reducer, Navigator)
 fun Screen1Detail(): Screen1Detail =
     Screen1Detail(
         close = { back() },
-        setCounter = { reducer { copy(counter = it) } }
+        setCounter = {
+            reducer { copy(counter = it) }
+        }
     )
 
+
 fun main() {
-    val store = Store({})
+    val scope = CoroutineScope(Job())
+    val repo = SearchRepository()
+
+    val store = with(scope, repo) {
+        Store(start = { Start() }, finish = {})
+    }
 
     with(store) {
-        state.value.screen.let {
-            if (it is Start) Splash().navigate()
-        }
-
         state<Splash> {
-            next()
+            scope.launch { next() }
         }
-
         state<Home> {
             login()
         }
         state<Login> {
-            next()
+            scope.launch { next() }
         }
         state<Password> {
-            back()
+            scope.launch { back() }
         }
     }
 }

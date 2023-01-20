@@ -58,7 +58,9 @@ fun back() {
         }
     }
 
-    if (state.value.stack.screens.isEmpty()) return state.value.finish()
+    if (state.value.stack.screens.isEmpty())
+        return state.value.finish()
+
     state.value.stack.screens
         .minus(state.value.stack.screens.last())
         .let { newStack ->

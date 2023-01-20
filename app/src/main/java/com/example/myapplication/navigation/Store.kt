@@ -1,14 +1,21 @@
 package com.example.myapplication.navigation
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 interface Store : Navigator, Reducer
 
-fun Store(finish: () -> Unit): Store {
+interface SideEffect : CoroutineScope
+
+context (CoroutineScope)
+fun Store(
+    start: context(SideEffect, Navigator, Reducer) () -> Unit,
+    finish: () -> Unit
+): Store {
     val state = MutableStateFlow(App(screen = Start, finish = finish))
 
-    val navigator: Navigator = Navigator { option ->
+    val navigator = Navigator { option ->
         when (option.addToStack) {
             true -> when (option.clearAll) {
                 true -> listOf(this)
@@ -36,7 +43,7 @@ fun Store(finish: () -> Unit): Store {
         }
     }
 
-    val reducer: Reducer = object : Reducer {
+    val reducer = object : Reducer {
         override fun App.reduce() {
             state.value = this
         }
@@ -44,5 +51,11 @@ fun Store(finish: () -> Unit): Store {
         override val state: StateFlow<App> =
             state
     }
+
+    val sideEffect = object : SideEffect , CoroutineScope by this@CoroutineScope{}
+
+    if (state.value.screen is Start)
+        start(sideEffect, navigator, reducer)
+
     return object : Store, Navigator by navigator, Reducer by reducer {}
 }

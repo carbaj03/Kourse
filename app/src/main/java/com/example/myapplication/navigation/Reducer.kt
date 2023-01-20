@@ -18,3 +18,11 @@ inline fun <reified S : Screen> reducer(f: S.() -> S): Unit =
         is S -> state.value.copy(screen = f(screen)).reduce()
         else -> Unit
     }
+
+
+context(Reducer)
+inline fun <reified S : Screen> state(f: S.() -> Unit): Unit =
+    when (val screen = state.value.screen) {
+        is S ->  f(screen)
+        else -> Unit
+    }

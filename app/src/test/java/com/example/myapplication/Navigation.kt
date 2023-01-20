@@ -2,28 +2,33 @@ package com.example.myapplication
 
 import com.example.myapplication.navigation.*
 import com.example.myapplication.navigation.Splash
-import com.example.myapplication.navigation.Start
 import com.example.myapplication.navigation.Store
 import io.ktor.util.reflect.*
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.*
+import kotlinx.coroutines.test.TestResult
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NavigatorShould {
+
     @Test
-    fun `make the all flow`() = runTest {
+    fun `make the all flow`(): TestResult = runTest {
 
         var isFinish = false
-        val store = Store(finish = { isFinish = true})
+        val repo = SearchRepository()
+        val store = Store(
+            start = { with(repo, SplashCalculator) { Start() } },
+            finish = { isFinish = true }
+        )
 
         with(store) {
-            state.assertScreen<Start> {
-                Splash().navigate(false)
-            }
             state.assertScreen<Splash> {
                 screen.next()
+                advanceTimeBy(1021)
             }
             state.assertScreen<Home> {
                 screen.login()
@@ -43,8 +48,15 @@ class NavigatorShould {
                 }
                 screen.onTabSelected(screen.tab2)
                 assert<Tab.Two> {
-                    tab.setCounter(21)
-                    Assert.assertEquals(21, tab.counter)
+                    tab.changeSearch("ca")
+                    advanceUntilIdle()
+                    Assert.assertEquals("ca", tab.toSearch)
+                    tab.selectSuggestion(tab.suggestions.first())
+                    advanceUntilIdle()
+                    Assert.assertEquals("carbajo", tab.toSearch)
+                    tab.search()
+                    advanceUntilIdle()
+                    Assert.assertEquals(listOf("Carbajo Achievements", "Carbajo the great developer"), tab.results)
                 }
                 screen.onTabSelected(screen.tab3)
                 assert<Tab.Three> {
@@ -52,13 +64,14 @@ class NavigatorShould {
                         next()
                     }
                     tab.screen.assert<Tab3Screen2> {
-                        back()
+                        launch { back() }
+                        advanceUntilIdle()
                     }
                     tab.screen.assert<Tab3Screen1>()
                 }
                 back()
-                assert<Tab.Two>{
-                    Assert.assertEquals(21, tab.counter)
+                assert<Tab.Two> {
+                    Assert.assertEquals("carbajo", tab.toSearch)
                 }
                 back()
                 assert<Tab.One> {
