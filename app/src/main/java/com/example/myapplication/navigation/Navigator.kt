@@ -1,5 +1,6 @@
 package com.example.myapplication.navigation
 
+import android.util.Log
 import com.example.myapplication.with
 
 fun interface Navigator {
@@ -29,31 +30,35 @@ inline fun <reified S : Screen> navigate(f: S.() -> S): Unit =
 
 context(Reducer)
 fun back() {
-    val dashboardMergeable = Mergeable<Dashboard> { other ->
-        when (other.currentTab) {
+    val dashboardMergeable = Mergeable<Dashboard> { stacked ->
+        when (stacked.currentTab) {
             is Tab.One -> if (currentTab is Tab.One) this else copy(
-                tab1 = other.currentTab,
-                tab2 = other.tab2,
-                tab3 = other.tab3,
-                tab4 = other.tab4,
+                tab1 = stacked.currentTab,
+                tab2 = stacked.tab2,
+                tab3 = stacked.tab3,
+                tab4 = stacked.tab4,
+                counter = stacked.counter
             )
             is Tab.Two -> if (currentTab is Tab.Two) this else copy(
-                tab1 = other.tab1,
-                tab2 = other.currentTab,
-                tab3 = other.tab3,
-                tab4 = other.tab4,
+                tab1 = stacked.tab1,
+                tab2 = stacked.currentTab,
+                tab3 = stacked.tab3,
+                tab4 = stacked.tab4,
+                counter = stacked.counter
             )
             is Tab.Three -> if (currentTab is Tab.Three) this else copy(
-                tab1 = other.tab1,
-                tab2 = other.tab2,
-                tab3 = other.currentTab,
-                tab4 = other.tab4,
+                tab1 = stacked.tab1,
+                tab2 = stacked.tab2,
+                tab3 = stacked.currentTab,
+                tab4 = stacked.tab4,
+                counter = stacked.counter
             )
             is Tab.Four -> if (currentTab is Tab.Four) this else copy(
-                tab1 = other.tab1,
-                tab2 = other.tab2,
-                tab3 = other.tab3,
-                tab4 = other.currentTab,
+                tab1 = stacked.tab1,
+                tab2 = stacked.tab2,
+                tab3 = stacked.tab3,
+                tab4 = stacked.currentTab,
+                counter = stacked.counter
             )
         }
     }
@@ -76,3 +81,24 @@ fun back() {
             } ?: state.value.finish()
         }
 }
+
+context(Reducer)
+fun screenToMerge(): List<Screen> {
+    if (state.value.stack.screens.isEmpty()) return emptyList()
+    return state.value.stack.screens
+        .getOrNull(state.value.stack.screens.size - 2)
+        ?.let { listOf(it, state.value.screen) }
+        ?: emptyList()
+
+}
+
+context(Reducer, Mergeable<A>)
+inline fun <reified A : Screen> filterMergeable(): List<A>? =
+    screenToMerge()
+        .filterIsInstance<A>()
+        .let { if (it.size <= 1) return null else it }
+
+
+context(Reducer, Mergeable<A>)
+inline fun <reified A : Screen> reduceStack(): A? =
+    filterMergeable()?.reduce { a, b -> a + b }

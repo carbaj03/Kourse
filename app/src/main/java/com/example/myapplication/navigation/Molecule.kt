@@ -7,9 +7,33 @@ import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlin.coroutines.EmptyCoroutineContext
+
+
+fun <T> CoroutineScope.launchMolecule(
+    body: @Composable () -> T,
+): StateFlow<T> {
+    var flow: MutableStateFlow<T>? = null
+
+    launchMolecule(
+        emitter = { value ->
+            val outputFlow = flow
+            if (outputFlow != null) {
+                outputFlow.value = value
+            } else {
+                flow = MutableStateFlow(value)
+            }
+        },
+        body = body,
+    )
+
+    return flow!!
+}
+
 
 fun <T> CoroutineScope.launchMolecule(
     emitter: (value: T) -> Unit,

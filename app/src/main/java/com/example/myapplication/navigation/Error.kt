@@ -3,6 +3,17 @@ package com.example.myapplication.navigation
 import arrow.core.nonFatalOrThrow
 import kotlin.experimental.ExperimentalTypeInference
 
+sealed interface Error {
+    data object Default : Error
+    data object SumError : Error
+    data object MultiplyError : Error
+    data object DivideError : Error
+}
+
+fun interface Raise<E> {
+    fun raise(error: E): Nothing
+}
+
 
 class RaiseException(val raised: Error) : IllegalStateException() {
     companion object {
