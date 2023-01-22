@@ -23,6 +23,11 @@ import com.example.myapplication.with
 inline fun <A, B, C, R> remember(a: A, b: B, c: C, crossinline block: context(A, B, C) (TypeWrapper<C>) -> R): R =
     remember { with(a, b, c, block) }
 
+@Composable
+@Suppress("SUBTYPING_BETWEEN_CONTEXT_RECEIVERS")
+inline fun <A, B, R> remember(a: A, b: B, crossinline block: context(A, B) (TypeWrapper<B>) -> R): R =
+    remember { with(a, b, block) }
+
 
 class ComposeImpl : AppCompatActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -33,7 +38,7 @@ class ComposeImpl : AppCompatActivity() {
 
         setContent {
             val scope = rememberCoroutineScope()
-            val store: Store = remember(repo, scope, SplashCalculator) {
+            val store: Store = remember(repo, scope) {
                 Store(
                     start = { Start() },
                     finish = { finish() }
@@ -47,6 +52,7 @@ class ComposeImpl : AppCompatActivity() {
                 when (val screen = state.screen) {
                     is Dashboard -> {
                         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = screen.counter.toString())
                             when (val tab = screen.currentTab) {
                                 is Tab.One -> {
                                     var field by remember { mutableStateOf("") }
@@ -60,10 +66,25 @@ class ComposeImpl : AppCompatActivity() {
                                     }
                                 }
                                 is Tab.Two -> {
+                                    LaunchedEffect(key1 = Unit, block = { tab.load() })
+                                    if (tab.isLoading) {
+                                        Text(text = "Loagind")
+                                    }
                                     TextField(
                                         value = tab.toSearch,
                                         onValueChange = { tab.changeSearch(it) }
                                     )
+                                    LazyColumn {
+                                        items(tab.suggestions) {
+                                            Row(
+                                                Modifier
+                                                    .clickable { tab.selectSuggestion(it) }
+                                                    .padding(10.dp)
+                                            ) {
+                                                Text(text = it)
+                                            }
+                                        }
+                                    }
                                     Button(onClick = { tab.search() }) {
                                         Text(text = "Search")
                                     }
@@ -100,26 +121,26 @@ class ComposeImpl : AppCompatActivity() {
                                         Row() {
                                             val f = remember { { condition: Boolean -> if (condition) Color.Green else Color.Blue } }
                                             OutlinedButton(
-                                                onClick = { tab.onSelected(tab.tab1) },
-                                                colors = ButtonDefaults.buttonColors(containerColor = f(tab.subTab is SubTab.One))
+                                                onClick = { tab.onSubTabSelected(tab.tab1) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = f(tab.currentSubTab is SubTab.One))
                                             ) {
                                                 Text(text = "One")
                                             }
                                             OutlinedButton(
-                                                onClick = { tab.onSelected(tab.tab2) },
-                                                colors = ButtonDefaults.buttonColors(containerColor = f(tab.subTab is SubTab.Two))
+                                                onClick = { tab.onSubTabSelected(tab.tab2) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = f(tab.currentSubTab is SubTab.Two))
                                             ) {
                                                 Text(text = "Two")
                                             }
                                             OutlinedButton(
-                                                onClick = { tab.onSelected(tab.tab3) },
-                                                colors = ButtonDefaults.buttonColors(containerColor = f(tab.subTab is SubTab.Three))
+                                                onClick = { tab.onSubTabSelected(tab.tab3) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = f(tab.currentSubTab is SubTab.Three))
                                             ) {
                                                 Text(text = "Three")
                                             }
                                         }
                                     }
-                                    when (val content = tab.subTab) {
+                                    when (val content = tab.currentSubTab) {
                                         is SubTab.One -> {
                                             var field by remember { mutableStateOf("") }
                                             Text(text = content.counter.toString())
@@ -199,6 +220,7 @@ class ComposeImpl : AppCompatActivity() {
                     }
                     is Login -> {
                         Column() {
+                            LaunchedEffect(key1 = Unit, block = {screen.onChange("name")})
                             Text(text = "Login")
                             Text(text = screen.name)
                             Button(onClick = { screen.next() }) {
@@ -222,18 +244,6 @@ class ComposeImpl : AppCompatActivity() {
                         }
                     }
                     is Password.Signup -> TODO()
-                    is Screen1Detail -> {
-                        Column() {
-                            Text(text = "Detail")
-                            Text(text = "Counter : " + state.counter)
-                            Button(onClick = { screen.setCounter(state.counter + 2) }) {
-                                Text(text = "Set counter")
-                            }
-                            Button(onClick = { screen.close() }) {
-                                Text(text = "Close")
-                            }
-                        }
-                    }
                     is SignUp -> {
                         screen.next
                     }

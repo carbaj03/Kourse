@@ -21,7 +21,7 @@ class NavigatorShould {
         var isFinish = false
         val repo = SearchRepository()
         val store = Store(
-            start = { with(repo, SplashCalculator) { Start() } },
+            start = { with(repo) { Start() } },
             finish = { isFinish = true }
         )
 
@@ -34,6 +34,7 @@ class NavigatorShould {
                 screen.login()
             }
             state.assertScreen<Login> {
+                screen.onChange("name")
                 screen.next()
             }
             state.assertScreen<Password> {

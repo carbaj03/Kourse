@@ -1,15 +1,18 @@
 package com.example.myapplication.navigation
 
 import androidx.compose.runtime.Composable
-import arrow.core.continuations.Raise
-import arrow.core.continuations.effect
+import arrow.optics.optics
 import com.example.myapplication.navigation.Tab.*
 import com.example.myapplication.with
 import io.ktor.util.reflect.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 
 interface State
@@ -74,7 +77,24 @@ data class Login(
     val name: String,
     val onChange: (String) -> Unit,
     override val route: String = "Login",
-) : Screen
+) : Screen {
+
+    context(Reducer)
+    fun reduce(
+        back: () -> Unit = this.back,
+        next: () -> Unit = this.next,
+        name: String = this.name,
+        onChange: (String) -> Unit = this.onChange
+    ) =
+        reducer<Login> { copy(back = back, next = next, name = name, onChange = onChange, route = route) }
+}
+
+data class LoginMutable(
+    var back: () -> Unit,
+    var next: () -> Unit,
+    var name: String,
+    var onChange: (String) -> Unit,
+)
 
 data class SignUp(
     val back: () -> Unit,
@@ -119,19 +139,30 @@ sealed interface Tab {
         val results: List<String>,
         val selectResult: () -> Unit,
         val back: () -> Unit,
-    ) : Tab
+        val isLoading: Boolean,
+        val load: () -> Unit
+    ) : Tab {
+        companion object {
+            context(Reducer)
+            inline fun <reified A> reducer(f: Two.() -> Two): Unit where A : Screen, A : WithTab<A> =
+                reducer<Two, A> { f() }
+        }
+    }
 
     data class Three(
         val screen: Tab3Content,
     ) : Tab
 
     data class Four(
-        val subTab: SubTab,
         val tab1: SubTab.One,
         val tab2: SubTab.Two,
         val tab3: SubTab.Three,
-        val onSelected: (SubTab) -> Unit
-    ) : Tab
+        override val currentSubTab: SubTab,
+        override val onSubTabSelected: (SubTab) -> Unit
+    ) : Tab, WithSubTab<Four> {
+        override fun with(current: SubTab): Four =
+            copy(currentSubTab = current)
+    }
 }
 
 sealed interface SubTab {
@@ -179,58 +210,98 @@ fun Tab3Screen2(): Tab3Screen2 =
         next = {},
     )
 
+sealed interface Error {
+    data object Default : Error
+}
+
+fun interface Raise<E> {
+    fun raise(e: E): Nothing
+}
+
+
+class SearchRepository {
+    context(Raise<Error>)
+    suspend fun getSuggestions(hint: String): List<String> {
+        delay(1000)
+        return listOf("carbajo").filter { it.contains(hint) }
+    }
+
+    context(Raise<Error>)
+    suspend fun getResults(search: String): List<String> {
+        delay(1000)
+        return listOf("Carbajo Achievements", "Carbajo the great developer").filter { it.contains(search, true) }
+    }
+}
+
+context(Raise<Error>)
+fun Int.sum() : Int = this + 2
+
+context(Raise<Error>)
+fun Int.multiply(num : Int) : Int = this * num
+
+context(Raise<Error>)
+fun Int.divide() : Int = this / 2
+
+context(Raise<Error>)
+fun String.count() : Int = this.length
+
+
+val sum : context(Raise<Error>) (Int) -> Int =  { x -> x + 2}
+
+
+
 context(Reducer, Navigator)
 fun Tab1(): One =
     One(
         counter = 0,
         setCounter = { newCounter ->
-            reducer<Dashboard> {
-                copy(currentTab = currentTab<One> { copy(counter = newCounter) })
-            }
+            reducer<One, Dashboard> { copy(counter = newCounter) }
         },
         back = { back() }
     )
 
-
-class SearchRepository {
-    suspend fun getSuggestions(hint: String): List<String> = listOf("carbajo").filter { it.contains(hint) }
-    suspend fun getResults(search: String): List<String> = listOf("Carbajo Achievements", "Carbajo the great developer").filter { it.contains(search, true) }
-}
-
-context(Reducer, Navigator, SearchRepository, CoroutineScope)
-fun Tab2(): Two =
-    Two(
+context(Reducer, Navigator, SearchRepository, SideEffect)
+fun Tab2(): Two {
+    var j : Job? = null
+    return Two(
         toSearch = "",
         changeSearch = { search ->
-            launch {
-                reducer<Dashboard> {
-                    copy(currentTab = currentTab<Two> { copy(toSearch = search, suggestions = getSuggestions(search)) })
+            j?.cancel()
+            reducer<Two, Dashboard> { copy(toSearch = search) }
+            j = launch {
+                raised {
+                    reducer<Two, Dashboard> { copy(suggestions = getSuggestions(search)) }
                 }
+//                Two.reducer<Dashboard> { copy(toSearch = search, suggestions = getSuggestions(search)) }
             }
         },
         search = {
             launch {
-                reducer<Dashboard> {
-                    copy(currentTab = currentTab<Two> { copy(results = getResults(toSearch)) })
+                raised {
+                    reducer<Two, Dashboard> { copy(results = getResults(toSearch)) }
                 }
             }
         },
         results = listOf(),
         selectResult = {
             launch {
-                state<Dashboard> {
-                    currentTab<Two, String> { tab2.toSearch }?.let { getResults(it) }
+                raised {
+                    state<Dashboard, Two> { getResults(tab2.toSearch) }
                 }
             }
         },
         suggestions = listOf(),
-        selectSuggestion = {
-            reducer<Dashboard> {
-                copy(currentTab = currentTab<Two> { copy(toSearch = it) })
+        selectSuggestion = { reducer<Two, Dashboard> { copy(toSearch = it) } },
+        back = {},
+        isLoading = true,
+        load = {
+            launch {
+                delay(2000)
+                reducer<Two, Dashboard> { copy(isLoading = false) }
             }
-        },
-        back = {}
+        }
     )
+}
 
 context(Reducer, Navigator)
 fun Tab3(): Three =
@@ -243,40 +314,29 @@ fun Tab4(): Four {
     val one = SubTab.One(
         counter = 0,
         setCounter = {
-            reducer<Dashboard> {
-                copy(currentTab = currentTab<Four> { copy(subTab = subTab<SubTab.One> { copy(counter = it) }) })
-            }
+            reducer<Dashboard, Four, SubTab.One> { copy(counter = it) }
+            reducer<Dashboard> { copy(counter = counter + it) }
         }
     )
     val two = SubTab.Two(
         counter = 0,
-        setCounter = {
-            reducer<Dashboard> {
-                copy(currentTab = currentTab<Four> { copy(subTab = subTab<SubTab.Two> { copy(counter = it) }) })
-            }
-        }
+        setCounter = { reducer<Dashboard, Four, SubTab.Two> { copy(counter = it) } }
     )
     val three = SubTab.Three(
         counter = 0,
-        setCounter = {
-            reducer<Dashboard> {
-                copy(currentTab = currentTab<Four> { copy(subTab = subTab<SubTab.Three> { copy(counter = it) }) })
-            }
-        }
+        setCounter = { reducer<Dashboard, Four, SubTab.Three> { copy(counter = it) } }
     )
     return Four(
-        onSelected = {
-            reducer<Dashboard> {
-                copy(currentTab = currentTab<Four> {
-                    when (subTab) {
-                        is SubTab.One -> if (it is SubTab.One) this else copy(tab1 = subTab, subTab = it)
-                        is SubTab.Two -> if (it is SubTab.Two) this else copy(tab2 = subTab, subTab = it)
-                        is SubTab.Three -> if (it is SubTab.Three) this else copy(tab3 = subTab, subTab = it)
-                    }
-                })
+        onSubTabSelected = {
+            reducer<Four, Dashboard> {
+                when (currentSubTab) {
+                    is SubTab.One -> if (it is SubTab.One) this else copy(tab1 = currentSubTab, currentSubTab = it)
+                    is SubTab.Two -> if (it is SubTab.Two) this else copy(tab2 = currentSubTab, currentSubTab = it)
+                    is SubTab.Three -> if (it is SubTab.Three) this else copy(tab3 = currentSubTab, currentSubTab = it)
+                }
             }
         },
-        subTab = one,
+        currentSubTab = one,
         tab1 = one,
         tab2 = two,
         tab3 = three,
@@ -319,14 +379,30 @@ inline operator fun <reified A : SubTab> SubTab.invoke(f: A.() -> A): SubTab =
         else -> this
     }
 
+
+interface WithTab<A> {
+    val currentTab: Tab
+    val onTabSelected: (Tab) -> Unit
+
+    fun with(current: Tab): A
+}
+
+interface WithSubTab<A> {
+    val currentSubTab: SubTab
+    val onSubTabSelected: (SubTab) -> Unit
+
+    fun with(current: SubTab): A
+}
+
 data class Dashboard(
     val tab1: One,
     val tab2: Two,
     val tab3: Three,
     val tab4: Four,
-    val currentTab: Tab,
-    val onTabSelected: (Tab) -> Unit,
-) : Screen {
+    val counter: Int,
+    override val currentTab: Tab,
+    override val onTabSelected: (Tab) -> Unit
+) : Screen, WithTab<Dashboard> {
     override val route: String
         get() = when (currentTab) {
             is One -> "DashboardTab1"
@@ -335,12 +411,15 @@ data class Dashboard(
                 is Tab3Screen1 -> "Tab3Screen1"
                 is Tab3Screen2 -> "Tab3Screen2"
             }
-            is Four -> when (currentTab.subTab) {
+            is Four -> when (currentTab.currentSubTab) {
                 is SubTab.One -> "SubTab.One"
                 is SubTab.Two -> "SubTab.Two"
                 is SubTab.Three -> "SubTab.Three"
             }
         }
+
+    override fun with(currentTab: Tab): Dashboard =
+        copy(currentTab = currentTab)
 }
 
 fun interface Mergeable<A : Screen> {
@@ -353,7 +432,7 @@ fun Start() {
     Splash().navigate(addToStack = false)
 }
 
-context(Navigator, Reducer, SearchRepository, CoroutineScope)
+context(Navigator, Reducer, SearchRepository, SideEffect)
 fun Dashboard(): Dashboard {
     val tab1 = Tab1()
     val tab2 = Tab2()
@@ -375,9 +454,9 @@ fun Dashboard(): Dashboard {
         tab2 = tab2,
         tab3 = tab3,
         tab4 = tab4,
+        counter = 0,
     )
 }
-
 
 
 context(Navigator, Reducer, SearchRepository, SideEffect)
@@ -401,10 +480,15 @@ fun Home(): Home =
 context(Navigator, Reducer, SearchRepository, SideEffect)
 fun Login(): Login =
     Login(
-        next = { LoginPassword().navigate() },
-        back = { launch { back() } },
-        name = "name",
-        onChange = { reducer<Login> { copy(name = it) } }
+        next = {
+            state<Login> { if (name == "name") LoginPassword().navigate() }
+        },
+        back = { back() },
+        name = "",
+        onChange = {
+            reducer<Login> { copy(name = it) }
+//            reducerM<Login, LoginMutable> { name = it }
+        }
     )
 
 context(Navigator, Reducer, SearchRepository, SideEffect)
@@ -420,7 +504,7 @@ fun LoginPassword(): Password =
     Password.Login(
         password = "",
         next = { Dashboard().navigate(clearAll = true) },
-        back = { launch { back() } },
+        back = { back() },
     )
 
 context(Navigator, Reducer, SearchRepository, SideEffect)
@@ -431,21 +515,26 @@ fun SignupPassword(): Password =
         back = { back() },
     )
 
-data class Screen1Detail(
-    val close: () -> Unit,
-    val setCounter: (Int) -> Unit,
-    override val route: String = "Screen1Detail"
-) : Screen
 
-context(Reducer, Navigator)
-fun Screen1Detail(): Screen1Detail =
-    Screen1Detail(
-        close = { back() },
-        setCounter = {
-            reducer { copy(counter = it) }
-        }
+fun <T> CoroutineScope.launchMolecule(
+    body: @Composable () -> T,
+): StateFlow<T> {
+    var flow: MutableStateFlow<T>? = null
+
+    launchMolecule(
+        emitter = { value ->
+            val outputFlow = flow
+            if (outputFlow != null) {
+                outputFlow.value = value
+            } else {
+                flow = MutableStateFlow(value)
+            }
+        },
+        body = body,
     )
 
+    return flow!!
+}
 
 fun main() {
     val scope = CoroutineScope(Job())
@@ -454,20 +543,27 @@ fun main() {
     val store = with(scope, repo) {
         Store(start = { Start() }, finish = {})
     }
+    val networkResult: NetworkResult = HttpError("boom!")
+    val f: (String) -> String = String::toUpperCase
+    NetworkResult.networkError.httpError.message.modify(networkResult, f)
 
     with(store) {
         state<Splash> {
-            scope.launch { next() }
+            next()
         }
         state<Home> {
             login()
         }
         state<Login> {
-            scope.launch { next() }
+            next()
         }
         state<Password> {
-            scope.launch { back() }
+            back()
         }
+    }
+
+    raised {
+        2.sum().sum().divide().multiply(2).toString().count()
     }
 }
 
@@ -506,3 +602,26 @@ interface ScreenContext<A : Screen> {
     val screen: A
     val screenFlow: Flow<A>
 }
+
+
+@optics
+sealed class NetworkResult {
+    companion object
+}
+
+@optics
+data class Success(val content: String) : NetworkResult() {
+    companion object
+}
+
+@optics
+sealed class NetworkError : NetworkResult() {
+    companion object
+}
+
+@optics
+data class HttpError(val message: String) : NetworkError() {
+    companion object
+}
+
+object TimeoutError : NetworkError()
