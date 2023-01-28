@@ -1,16 +1,24 @@
 package com.example.myapplication.navigation
 
 import com.example.myapplication.navigation.Tab.*
+import com.example.myapplication.with
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlin.coroutines.CoroutineContext
 
 data class Dashboard(
     val tab1: One,
     val tab2: Two,
     val tab3: Three,
     val tab4: Four,
-    val counter: Int,
+    val counters: Map<String, Int>,
+    val load: () -> Unit,
     override val currentTab: Tab,
-    override val onTabSelected: (Tab) -> Unit
-) : Screen, WithTab<Dashboard> {
+    override val onTabSelected: (Tab) -> Unit,
+    override val stop: () -> Unit,
+) : Screen, WithTab<Dashboard>, Stoppable {
     override val route: String
         get() = when (currentTab) {
             is One -> "DashboardTab1"
@@ -28,15 +36,32 @@ data class Dashboard(
 
     override fun with(current: Tab): Dashboard =
         copy(currentTab = current)
+
+    companion object {
+        fun empty() =
+            Dashboard(One.empty(), Two.empty(), Three.empty(), Four.empty(), mapOf(), {}, One.empty(), {}, {})
+    }
 }
 
+context(Reducer, SideEffect)
+inline fun <reified B> create(initialScreen: B): ScreenReducer<B> where B : Screen, B : WithTab<B> =
+    object : ScreenReducer<B>, Reducer by this@Reducer {
+        override val screen: StateFlow<B> = state.map { it.screen }.distinctUntilChanged().filterIsInstance<B>().stateIn(this@SideEffect, SharingStarted.Lazily, initialScreen)
+    }
 
-context(Navigator, Reducer, SearchRepository, SideEffect)
+context(Reducer, SideEffect)
+inline fun <reified B, reified A : Tab> create(initialScreen: B, initialTab: A): TabReducer<B, A> where B : Screen, B : WithTab<B> =
+    object : TabReducer<B, A>, ScreenReducer<B> by create(initialScreen) {
+        override val tab: StateFlow<A> = screen.map { it.currentTab }.distinctUntilChanged().filterIsInstance<A>().stateIn(this@SideEffect, SharingStarted.Lazily, initialTab)
+    }
+
+
+context(Navigator, Reducer, SearchRepository, SideEffect, Counter)
 fun Dashboard(): Dashboard {
-    val tab1 = Tab1()
-    val tab2 = Tab2()
-    val tab3 = Tab3()
-    val tab4 = Tab4()
+    val tab1 = withScope(name = "Tab1") { with(Counter(), create(Dashboard.empty(), One.empty())) { Tab1() } }
+    val tab2 = withScope(name = "Tab2") { with(Counter(), create(Dashboard.empty(), Two.empty())) { Tab2() } }
+    val tab3 = withScope(name = "Tab3") { with(Counter()) { Tab3() } }
+    val tab4 = withScope(name = "Tab4") { with(Counter()) { Tab4() } }
     return Dashboard(
         currentTab = tab1,
         onTabSelected = {
@@ -53,6 +78,26 @@ fun Dashboard(): Dashboard {
         tab2 = tab2,
         tab3 = tab3,
         tab4 = tab4,
-        counter = 0,
+        counters = emptyMap(),
+        load = {
+            launch {
+                count.collect {
+                    reducer<Dashboard> { copy(counters = counters.toMutableMap().apply { set("Dash", it) }) }
+                }
+            }
+        },
+        stop = {
+            cancel()
+        }
     )
 }
+
+
+context(SideEffect)
+inline fun <A> withScope(name: String = "withScope", f: context(SideEffect)() -> A): A =
+    (coroutineContext + SupervisorJob() + CoroutineName(name)).let {
+        f(object : SideEffect {
+            override val coroutineContext: CoroutineContext = it
+        })
+    }
+

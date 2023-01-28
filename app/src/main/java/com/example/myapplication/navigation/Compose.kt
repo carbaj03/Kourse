@@ -51,16 +51,23 @@ class ComposeImpl : AppCompatActivity() {
 
                 when (val screen = state.screen) {
                     is Dashboard -> {
+                        LaunchedEffect(key1 = Unit, block = { screen.load() })
                         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = screen.counter.toString())
+                            LazyColumn(content = {
+                                items(screen.counters.map { it.key + " : " + it.value }) {
+                                    Text(text = it.toString())
+                                }
+                            })
                             when (val tab = screen.currentTab) {
                                 is Tab.One -> {
+                                    LaunchedEffect(key1 = Unit, block = { tab.load() })
                                     var field by remember { mutableStateOf("") }
-                                    Text(text = tab.counter.toString())
+
                                     TextField(
                                         value = field,
                                         onValueChange = { field = it }
                                     )
+                                    Text(text = tab.counter.toString())
                                     Button(onClick = { tab.setCounter(field.toInt()); field = "" }) {
                                         Text(text = "Set Counter")
                                     }
@@ -103,12 +110,14 @@ class ComposeImpl : AppCompatActivity() {
                                 is Tab.Three -> {
                                     when (val content = tab.screen) {
                                         is Tab3Screen1 -> {
+                                            LaunchedEffect(key1 = Unit, block = { tab.load() })
                                             Text(text = "Tab 3 Screen 1")
                                             Button(onClick = content.next) {
                                                 Text(text = "next")
                                             }
                                         }
                                         is Tab3Screen2 -> {
+                                            LaunchedEffect(key1 = Unit, block = { content.load() })
                                             Text(text = "Tab 3 Screen 2")
                                             Button(onClick = { content.back() }) {
                                                 Text(text = "Back")
@@ -117,6 +126,7 @@ class ComposeImpl : AppCompatActivity() {
                                     }
                                 }
                                 is Tab.Four -> {
+                                    LaunchedEffect(key1 = Unit, block = { tab.load() })
                                     Column {
                                         Row() {
                                             val f = remember { { condition: Boolean -> if (condition) Color.Green else Color.Blue } }
@@ -220,7 +230,7 @@ class ComposeImpl : AppCompatActivity() {
                     }
                     is Login -> {
                         Column() {
-                            LaunchedEffect(key1 = Unit, block = {screen.onChange("name")})
+                            LaunchedEffect(key1 = Unit, block = { screen.onChange("name") })
                             Text(text = "Login")
                             Text(text = screen.name)
                             Button(onClick = { screen.next() }) {
@@ -255,6 +265,12 @@ class ComposeImpl : AppCompatActivity() {
                     }
                     is Start -> {
 
+                    }
+                    is Detail -> {
+                        Text(text = screen.title)
+                        Button(onClick = { screen.back() }) {
+                            Text(text = "Back")
+                        }
                     }
                 }
             }

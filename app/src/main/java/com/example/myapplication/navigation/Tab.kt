@@ -1,14 +1,23 @@
 package com.example.myapplication.navigation
 
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
 
 sealed interface Tab {
     data class One(
         val counter: Int,
         val setCounter: (Int) -> Unit,
         val back: () -> Unit,
-    ) : Tab
+        val load: () -> Unit,
+        override val stop: () -> Unit,
+    ) : Tab, Stoppable {
+        companion object {
+            fun empty() =
+                One(0, {}, {}, {}, {})
+        }
+    }
 
     data class Two(
         val toSearch: String,
@@ -20,84 +29,156 @@ sealed interface Tab {
         val selectResult: () -> Unit,
         val back: () -> Unit,
         val isLoading: Boolean,
-        val load: () -> Unit
-    ) : Tab
+        val load: () -> Unit,
+        override val stop: () -> Unit,
+    ) : Tab, Stoppable {
+        companion object {
+            context(Reducer)
+            inline operator fun <A> invoke(f: Two.() -> A): A = f(get())
+
+            fun empty() = Two("", {}, {}, listOf(), {}, listOf(), {}, {}, false, {}, {})
+        }
+    }
 
     data class Three(
         val screen: Tab3Content,
-    ) : Tab
+        val load: () -> Unit,
+        override val stop: () -> Unit,
+    ) : Tab, Stoppable {
+        companion object {
+            fun empty() =
+                Three(Tab3Content.empty(), {}, {})
+        }
+    }
 
     data class Four(
         val tab1: SubTab.One,
         val tab2: SubTab.Two,
         val tab3: SubTab.Three,
+        val load: () -> Unit,
         override val currentSubTab: SubTab,
-        override val onSubTabSelected: (SubTab) -> Unit
-    ) : Tab, WithSubTab<Four> {
+        override val onSubTabSelected: (SubTab) -> Unit,
+        override val stop: () -> Unit,
+    ) : Tab, WithSubTab<Four>, Stoppable {
         override fun with(current: SubTab): Four =
             copy(currentSubTab = current)
+
+        companion object {
+            fun empty() =
+                Four(SubTab.One.empty(), SubTab.Two.empty(), SubTab.Three.empty(), {}, SubTab.One.empty(), {}, {})
+        }
     }
 }
 
 
-context(Reducer, Navigator)
+context(TabReducer<Dashboard, Tab.One>, Navigator, SideEffect, Counter)
 fun Tab1(): Tab.One =
     Tab.One(
         counter = 0,
         setCounter = { newCounter ->
-            reducer<Tab.One, Dashboard> { copy(counter = newCounter) }
+            reducerTab { copy(counter = newCounter) }
         },
-        back = { back() }
+        back = { back() },
+        load = {
+            launch {
+                count.collect {
+                    reducerScreen { copy(counters = counters.toMutableMap().apply { set(route, it) }) }
+                }
+            }
+        },
+        stop = {
+            cancel()
+        }
     )
 
-context(Reducer, Navigator, SearchRepository, SideEffect)
-fun Tab2(): Tab.Two =
-    Tab.Two(
+context(TabReducer<Dashboard, Tab.Two>, Navigator, SearchRepository, SideEffect, Counter)
+fun Tab2(): Tab.Two {
+    var job: Job? = null
+    return Tab.Two(
         toSearch = "",
         changeSearch = { search ->
-            reducer<Tab.Two, Dashboard> { copy(toSearch = search) }
-            launch {
+            job?.cancel()
+            reducerTab { copy(toSearch = search) }
+            job = launch {
                 raised {
-                    reducer<Tab.Two, Dashboard> { copy(suggestions = getSuggestions(search)) }
+                    val s = getSuggestions(search)
+                    reducerTab { copy(suggestions = s) }
+//                    reducer<Tab.Two, Dashboard> { copy(suggestions = getSuggestions(search)) }
                 }
             }
         },
         search = {
             launch {
                 raised {
-                    reducer<Tab.Two, Dashboard> { copy(results = getResults(toSearch)) }
+                    val r = getResults(tab.value.toSearch)
+                    reducerTab { copy(results = r) }
+//                    reducer<Tab.Two, Dashboard> { copy(results = r) }
                 }
             }
         },
         results = listOf(),
-        selectResult = {
-            launch {
-                raised {
-                    state<Dashboard, Tab.Two> { getResults(tab2.toSearch) }
-                }
-            }
-        },
+        selectResult = { Detail().navigate() },
         suggestions = listOf(),
-        selectSuggestion = { reducer<Tab.Two, Dashboard> { copy(toSearch = it) } },
+        selectSuggestion = { reducerTab { copy(toSearch = it) } },
         back = {},
         isLoading = true,
         load = {
             launch {
-                delay(2000)
-                reducer<Tab.Two, Dashboard> { copy(isLoading = false) }
+                count.collect {
+                    reducer<Dashboard> { copy(counters = counters.toMutableMap().apply { set(route, it) }) }
+                }
             }
+            launch {
+                delay(2000)
+                reducerTab { copy(isLoading = false) }
+            }
+        },
+        stop = {
+            cancel()
         }
     )
+}
 
-context(Reducer, Navigator)
+context(Reducer)
+fun <A> get(): A =
+    when (val s = state.value.screen) {
+        is Dashboard ->
+            when (val tab = s.currentTab) {
+                is Tab.Four -> TODO()
+                is Tab.One -> tab as A
+                is Tab.Three -> TODO()
+                is Tab.Two -> tab as A
+            }
+
+        is Detail -> TODO()
+        is Home -> TODO()
+        is Login -> TODO()
+        is Password.Login -> TODO()
+        is Password.Signup -> TODO()
+        is SignUp -> TODO()
+        is Splash -> TODO()
+        Start -> TODO()
+    }
+
+context(Reducer, Navigator, Counter, SideEffect)
 fun Tab3(): Tab.Three =
     Tab.Three(
         screen = Tab3Screen1(),
+        load = {
+            launch {
+                count.collect {
+                    reducer<Dashboard> { copy(counters = counters.toMutableMap().apply { set(route, it) }) }
+                }
+            }
+        },
+        stop = {
+            cancel()
+        }
     )
 
-context(Reducer, Navigator)
+context(Reducer, Navigator, SideEffect, Counter)
 fun Tab4(): Tab.Four {
-    val one = SubTabOne()
+    val one = withScope("SubTabOne") { SubTabOne() }
     val two = SubTabTwo()
     val three = SubTabThree()
 
@@ -115,6 +196,16 @@ fun Tab4(): Tab.Four {
         tab1 = one,
         tab2 = two,
         tab3 = three,
+        load = {
+            launch {
+                count.collect {
+                    reducer<Dashboard> { copy(counters = counters.toMutableMap().apply { set(route, it) }) }
+                }
+            }
+        },
+        stop = {
+            cancel()
+        }
     )
 }
 
@@ -122,11 +213,11 @@ fun Tab4(): Tab.Four {
 inline operator fun <reified A : Tab> Tab.invoke(f: A.() -> A): Tab =
     when (this) {
         is A -> f(this)
-        else -> this
+        else -> throw Exception(this.toString())
     }
 
-inline operator fun <reified A : Tab, B> Tab.invoke(f: A.() -> B): B? =
+inline fun <reified A : Tab, B> Tab.pointer(f: A.() -> B): B =
     when (this) {
         is A -> f(this)
-        else -> null
+        else -> throw Exception(this.toString())
     }

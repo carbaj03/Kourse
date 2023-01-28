@@ -28,7 +28,8 @@ data class Login(
     val name: String,
     val onChange: (String) -> Unit,
     override val route: String = "Login",
-) : Screen
+    override val stop: () -> Unit,
+) : Screen, Stoppable
 
 data class LoginMutable(
     var back: () -> Unit,
@@ -63,6 +64,13 @@ sealed interface Password : Screen {
         override val route: String = "PasswordSignup",
     ) : Password
 }
+
+data class Detail(
+    val title: String,
+    val back: () -> Unit,
+    override val route: String = "Detail",
+    override val stop: () -> Unit
+) : Screen, Stoppable
 
 
 context(Navigator, Reducer, SearchRepository, SideEffect)
@@ -99,6 +107,9 @@ fun Login(): Login =
         onChange = {
             reducer<Login> { copy(name = it) }
 //            reducerM<Login, LoginMutable> { name = it }
+        },
+        stop = {
+            cancel()
         }
     )
 
@@ -114,7 +125,7 @@ context(Navigator, Reducer, SearchRepository, SideEffect)
 fun LoginPassword(): Password =
     Password.Login(
         password = "",
-        next = { Dashboard().navigate(clearAll = true) },
+        next = { with(Counter()) { Dashboard() }.navigate(clearAll = true) },
         back = { back() },
     )
 
@@ -122,6 +133,14 @@ context(Navigator, Reducer, SearchRepository, SideEffect)
 fun SignupPassword(): Password =
     Password.Signup(
         password = "",
-        next = { Dashboard().navigate() },
+        next = { with(Counter()) { Dashboard().navigate() } },
         back = { back() },
+    )
+
+context(Reducer)
+fun Detail(): Detail =
+    Detail(
+        back = { back() },
+        title = "asdf",
+        stop = {}
     )

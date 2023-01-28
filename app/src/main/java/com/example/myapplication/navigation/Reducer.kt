@@ -7,6 +7,22 @@ interface Reducer {
     val state: StateFlow<App>
 }
 
+interface ScreenReducer<A : Screen> : Reducer {
+    val screen: StateFlow<A>
+}
+
+interface TabReducer<A: Screen,  B: Tab> : ScreenReducer<A> {
+    val tab: StateFlow<B>
+}
+
+context(TabReducer<B, A>)
+inline fun<reified A : Tab, reified B> reducerTab(crossinline f: A.() -> A) where B : Screen, B : WithTab<B> =
+    reducer<A, B> (f)
+
+context(TabReducer<B, A>)
+inline fun<reified A : Tab, reified B> reducerScreen(crossinline f: B.() -> B) where B : Screen, B : WithTab<B> =
+    reducer(f)
+
 context(Reducer)
 @JvmName("reducerApp")
 inline fun reducer(f: App.() -> App): Unit =
@@ -17,7 +33,7 @@ context(Reducer)
 inline fun <reified S : Screen> reducer(f: S.() -> S): Unit =
     when (val screen = state.value.screen) {
         is S -> state.value.copy(screen = f(screen)).reduce()
-        else -> Unit
+        else -> throw Exception(screen.toString())
     }
 
 context(Reducer)
@@ -33,7 +49,7 @@ inline fun <reified A : Screen, B> reducerM(f: B.() -> Unit): Unit {
                             LoginMutable(back, next, name, onChange)
 
                         override fun LoginMutable.revert(): Login =
-                            Login(back, next, name, onChange)
+                            Login(back, next, name, onChange, stop = {})
 
                     }.run {
                         val b = screen.mutate()
@@ -45,7 +61,8 @@ inline fun <reified A : Screen, B> reducerM(f: B.() -> Unit): Unit {
                 is Password.Signup -> TODO()
                 is SignUp -> TODO()
                 is Splash -> TODO()
-                Start -> TODO()
+                is Start -> TODO()
+                is Detail -> TODO()
             }
 
         }
@@ -59,7 +76,7 @@ interface Mutable<A, B> {
 }
 
 context(Reducer)
-inline fun <reified A : Tab, reified B> reducer(f: A.() -> A): Unit where B : Screen, B : WithTab<B> =
+inline fun <reified A : Tab, reified B> reducer(crossinline f: A.() -> A): Unit where B : Screen, B : WithTab<B> =
     reducer<B> { with(current = currentTab<A> { f() }) }
 
 context(Reducer)
@@ -72,7 +89,7 @@ context(Reducer)
 inline fun <reified S : Screen> state(f: S.() -> Unit): Unit =
     when (val screen = state.value.screen) {
         is S -> f(screen)
-        else -> Unit
+        else -> throw Exception(screen.toString())
     }
 
 context(Reducer)
@@ -82,5 +99,5 @@ inline fun <reified B, reified C, reified A> state(f: A.() -> A): Unit where B :
 
 context(Reducer)
 @JvmName("stateTab")
-inline fun <reified B, reified C> state(f: B.() -> Unit): Unit where B : Screen, B : WithTab<B>, C : Tab =
+inline fun <reified B, reified C> state(f: C.() -> Unit): Unit where B : Screen, B : WithTab<B>, C : Tab =
     state<B> { with(current = currentTab<C> { f(); this }) }

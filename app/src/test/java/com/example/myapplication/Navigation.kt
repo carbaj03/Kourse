@@ -50,8 +50,12 @@ class NavigatorShould {
                 screen.onTabSelected(screen.tab2)
                 assert<Tab.Two> {
                     tab.changeSearch("ca")
+                    tab.stop()
                     advanceUntilIdle()
                     Assert.assertEquals("ca", tab.toSearch)
+                    Assert.assertEquals(0, tab.suggestions.size)
+                    tab.changeSearch("ca")
+                    advanceUntilIdle()
                     tab.selectSuggestion(tab.suggestions.first())
                     advanceUntilIdle()
                     Assert.assertEquals("carbajo", tab.toSearch)
@@ -65,7 +69,7 @@ class NavigatorShould {
                         next()
                     }
                     tab.screen.assert<Tab3Screen2> {
-                        launch { back() }
+                        back()
                         advanceUntilIdle()
                     }
                     tab.screen.assert<Tab3Screen1>()
